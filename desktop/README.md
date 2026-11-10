@@ -8,7 +8,7 @@ favorites, history/resume, profiles and category restrictions with PINs.
 Install on Fedora (Intel/AMD 64-bit):
 
 ```sh
-sudo dnf install ./astra-0.1.4-1.noarch.rpm
+sudo dnf install ./astra-0.1.4-2.noarch.rpm
 astra
 ```
 

@@ -5,6 +5,7 @@ asynchronous, so the render thread never waits for the mpv playback core.
 """
 import ctypes as C
 import ctypes.util
+import locale
 import threading
 import time
 
@@ -39,6 +40,14 @@ def binding(lib, name, result, *args):
     fn = getattr(lib, name)
     fn.restype, fn.argtypes = result, list(args)
     return fn
+
+
+def create_handle(lib):
+    # GTK adopts the desktop locale. libmpv requires exactly C for numeric parsing,
+    # even en_US (which also uses a decimal point) makes mpv_create return NULL.
+    # Keep this category pinned for the lifetime of all libmpv worker threads.
+    locale.setlocale(locale.LC_NUMERIC, "C")
+    return lib.mpv_create()
 
 
 class Preview(Gtk.GLArea):
@@ -87,7 +96,7 @@ class Preview(Gtk.GLArea):
         self.gl_get = C.CFUNCTYPE(None, C.c_uint, C.POINTER(C.c_int))(self.egl.eglGetProcAddress(b"glGetIntegerv"))
         self.gl_clear_color = C.CFUNCTYPE(None, C.c_float, C.c_float, C.c_float, C.c_float)(self.egl.eglGetProcAddress(b"glClearColor"))
         self.gl_clear = C.CFUNCTYPE(None, C.c_uint)(self.egl.eglGetProcAddress(b"glClear"))
-        self.handle = lib.mpv_create()
+        self.handle = create_handle(lib)
         if not self.handle: raise UserError("Could not create the preview player.")
         options = {"vo":"libmpv", "config":"no", "load-scripts":"no", "ytdl":"no", "load-unsafe-playlists":"no",
                    "audio":"no", "sub":"no", "osc":"no", "osd-level":"0", "terminal":"no", "msg-level":"all=no",

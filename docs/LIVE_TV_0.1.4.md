@@ -16,3 +16,16 @@ RPM digests pass and dependencies include mpv-libs and libglvnd-egl.
 
 This does not measure provider buffering, physical device performance, or every
 GPU/Wayland configuration. No provider credentials or media are included.
+
+## Revision 2: desktop locale regression
+
+The installed application's journal showed libmpv rejecting a non-C numeric
+locale. Raw mpv_create reproduced NULL handles under en_US.UTF-8 and de_DE.UTF-8.
+Astra now pins LC_NUMERIC to C immediately before player creation, as required by
+[the libmpv API](https://github.com/mpv-player/mpv/blob/master/include/mpv/client.h).
+Thirteen tests pass, including real handle creation in both locales while other
+locale categories remain unchanged. The native integration check can inject a
+non-C numeric locale after GTK initializes via ASTRA_TEST_NUMERIC_LOCALE.
+
+The corrected RPM also created its native OpenGL preview context successfully
+on the local Wayland desktop with en_US numeric locale injected after GTK startup.

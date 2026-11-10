@@ -1,5 +1,12 @@
 # Astra Linux 0.1.4
 
+RPM revision 2 fixes preview creation on localized desktops. GTK adopts the
+desktop numeric locale, but libmpv requires LC_NUMERIC=C even with en_US. Astra
+now pins that numeric category before creating the player, preserving date/time
+and language settings. Thirteen tests pass, including real libmpv creation after
+en_US and de_DE locale setup; native decoded-video checks also exercise a
+non-C numeric locale.
+
 Live TV now has a traditional category/channel/preview layout. Hover over a channel
 for 500 ms to start a muted embedded preview; click to watch in full screen.
 Current and next programme details appear when an XMLTV guide is available.

@@ -4,6 +4,7 @@ Run: python3 desktop/tests/live_ui_smoke.py --output /tmp/astra-live-evidence
 Requires Xvfb, ffmpeg, Mesa/OpenGL and the normal RPM runtime dependencies.
 """
 import argparse
+import locale
 import os
 from pathlib import Path
 import shutil
@@ -52,9 +53,11 @@ def child(output):
             if time.monotonic()-started > 25: raise AssertionError(('Native UI check timed out', state['phase'], w.get_allocated_width(), live.layout))
             if state['phase'] == 0 and len(live.model) == 200:
                 assert live.groups.get_visible() and live.group_scroll.get_child().get_mapped()
+                locale.setlocale(locale.LC_NUMERIC, os.environ.get('ASTRA_TEST_NUMERIC_LOCALE', 'C'))
                 for i in [0,1,2,2]: live.queue(live.model[i][3])
                 state['phase'] = 1
             elif state['phase'] == 1 and live.preview.frames >= 30:
+                assert locale.setlocale(locale.LC_NUMERIC) == 'C'
                 assert live.preview.active_id == live.model[2][3]['id']
                 assert all('channel=2' in p for p in requests), requests
                 assert live.now_title.get_text() == 'Fixture programme'
