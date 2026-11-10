@@ -1,4 +1,4 @@
-# Implementation status — 0.1.0 development build
+# Implementation status — 0.1.1 development build
 
 This repository contains working implementation code and built APKs. It is not a production-certification claim. Builds, unit tests and lint passed on the Fedora host; television playback and remote behavior require runtime acceptance. No mockup images were supplied with the brief.
 
@@ -16,8 +16,12 @@ This repository contains working implementation code and built APKs. It is not a
 | Settings | HTTP policy, aspect, merging, source scope, sort, guide refresh, management PIN | Fixed dark identity; no configurable theme, font or overscan sliders (system scaling supported) |
 | Updates | Manual GitHub release check/notes, user download, APK package/version/signer checks, installation permission and FileProvider intent | Not exercised against a real signed update. No automatic updater or key rotation. Requires configured published repository |
 | Distribution | Wrapper, debug APK, R8 unsigned release APK, external-key signing configuration, CI/release workflows, Fedora/ADB/Downloader docs | Development preview published at github.com/imunknownhaha/astra-tv. Production signing remains unconfigured; Downloader code is 1723835. Unsigned APK cannot install |
-| Tests | 16 passing JVM/Robolectric tests, lint with no errors, compiled navigation instrumentation APK | Instrumentation execution and emulator screenshots unavailable in this environment; physical-TV acceptance and profiling pending |
+| Tests | 26 passing JVM/Robolectric tests, lint with no errors, compiled navigation instrumentation APK | Physical instrumentation execution and emulator screenshots unavailable in this environment; physical-TV acceptance and profiling pending |
 | Recording/external player | Feasibility documented | Deferred; no nonfunctional buttons advertise these features |
+
+## Xtream import reliability update (0.1.1)
+
+A user reported the app closing 10–15 seconds into Xtream loading on an onn 4K Pro. No device crash trace was available to prove the cause. Inspection found a large-catalog memory risk: complete JSON arrays and all live/movie/series objects were retained together. Catalog import now streams into hidden 128-row encrypted batches, atomically publishes successful imports, preserves previous catalogs on failure and shows progress. Optional on-demand endpoint failures are recoverable. A local crash code records only error type, app stage and our source-code location, excluding exception messages and provider addresses/credentials. The fix still requires confirmation on the reported onn device.
 
 ## Release gates
 

@@ -14,13 +14,16 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
-class AstraApplication: Application(),ImageLoaderFactory {
+class AstraApplication: Application(),ImageLoaderFactory, Configuration.Provider {
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().build()
     val database by lazy { Room.databaseBuilder(this,LibraryDatabase::class.java,"astra.db").build() }
     val network by lazy { NetworkClient() }
     val settings by lazy { SettingsStore(this) }
     val library by lazy { LibraryRepository(database,SecretStore(),network,this) }
     override fun onCreate() {
         super.onCreate()
+        com.astratv.player.core.security.CrashDiagnostics.install(this)
         WorkManager.getInstance(this).enqueueUniquePeriodicWork("astra-guide",ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<GuideRefreshWorker>(12,TimeUnit.HOURS).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
     }

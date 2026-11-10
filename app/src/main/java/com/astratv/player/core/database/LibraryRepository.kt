@@ -7,19 +7,19 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import com.astratv.player.core.datastore.Settings
 import com.astratv.player.core.model.*
 import com.astratv.player.core.network.*
-import com.astratv.player.core.security.SecretStore
+import com.astratv.player.core.security.SecretCodec
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class LibraryRepository(val db: LibraryDatabase,val secrets: SecretStore,val network: NetworkClient,private val context: Context) {
+class LibraryRepository(val db: LibraryDatabase,val secrets: SecretCodec,val network: NetworkClient,private val context: Context) {
     val dao=db.library()
-    suspend fun initialize() { if(dao.profile("default")==null) dao.putProfile(ProfileEntity("default","Home")) }
+    suspend fun initialize() { dao.clearPendingImports();if(dao.profile("default")==null) dao.putProfile(ProfileEntity("default","Home")) }
     fun browse(settings: Settings,section: String,category: String,query: String,limit: Int,profile: ProfileEntity?): Flow<List<MediaRow>> {
         val args=mutableListOf<Any>(settings.profile)
-        val clauses=mutableListOf("1=1")
+        val clauses=mutableListOf("i.sourceId IN (SELECT id FROM sources)")
         when(section) {
             "Live TV","Guide","Catch-up" -> clauses+="i.kind='LIVE'"
             "Movies" -> clauses+="i.kind='MOVIE'"
@@ -41,7 +41,7 @@ class LibraryRepository(val db: LibraryDatabase,val secrets: SecretStore,val net
         return dao.browse(SimpleSQLiteQuery("SELECT i.*,COALESCE(w.favorite,0) AS favorite,COALESCE(w.position,0) AS position,COALESCE(w.duration,0) AS duration,COALESCE(w.lastPlayed,0) AS lastPlayed,COALESCE(w.watched,0) AS watched FROM items i LEFT JOIN watch w ON w.itemId=i.id AND w.profileId=? WHERE ${clauses.joinToString(" AND ")} ORDER BY $order LIMIT ?",args.toTypedArray()))
     }
     suspend fun neighbor(settings: Settings,profile: ProfileEntity?,current: ItemEntity?,direction: Int): ItemEntity? {
-        val base=mutableListOf("kind='LIVE'");val baseArgs=mutableListOf<Any>()
+        val base=mutableListOf("kind='LIVE'", "sourceId IN (SELECT id FROM sources)");val baseArgs=mutableListOf<Any>()
         if(!settings.merged && settings.source.isNotEmpty()) { base+="sourceId=?";baseArgs+=settings.source }
         val hidden=JSONArray(profile?.restrictedGroups ?: "[]")
         for(i in 0 until hidden.length()) { base+="groupName!=?";baseArgs+=hidden.getString(i) }
@@ -63,22 +63,76 @@ class LibraryRepository(val db: LibraryDatabase,val secrets: SecretStore,val net
         val parsed=context.contentResolver.openInputStream(uri)?.use { M3uParser.parse(it.reader(),allowHttp=allowHttp) } ?: throw ImportFailure("The selected file could not be opened.")
         persist(SourceEntity(UUID.randomUUID().toString(),name.ifBlank { "Local playlist" },"FILE",secrets.seal(JSONObject().put("uri",uri.toString()).toString()),secrets.seal(parsed.guideUrl)),parsed.items)
     }
-    suspend fun importXtream(name: String,server: String,user: String,password: String,allowHttp: Boolean,existing: String?=null): Int = withContext(Dispatchers.IO) {
-        val base=UrlPolicy.validate(server.trimEnd('/'),allowHttp)
-        val u=java.net.URI(base)
-        if(u.rawQuery!=null || u.path !in listOf("","/")) throw ImportFailure("Use the provider's server address and port without a path or query.")
-        val config=JSONObject().put("base",base).put("user",user).put("password",password)
-        fun get(action: String="")=network.text(api(config,action),allowHttp)
-        val auth=JSONObject(get()).optJSONObject("user_info")
-        if(auth?.optInt("auth")!=1) throw ImportFailure("Provider authentication failed. Check your credentials and subscription status.")
-        val all=mutableListOf<ImportedItem>()
-        for((kind,action,categories) in listOf(Triple(MediaKind.LIVE,"get_live_streams","get_live_categories"),Triple(MediaKind.MOVIE,"get_vod_streams","get_vod_categories"),Triple(MediaKind.SERIES,"get_series","get_series_categories"))) {
-            val groups=XtreamParser.categories(get(categories))
-            all+=XtreamParser.items(get(action),kind,base,user,password,groups)
+    data class ProviderImport(val count: Int, val warnings: List<String>)
+    suspend fun importXtream(name: String, server: String, user: String, password: String, allowHttp: Boolean,
+        existing: String? = null, progress: (String) -> Unit = {}): ProviderImport = withContext(Dispatchers.IO) {
+        val base = UrlPolicy.validate(server.trim().trimEnd('/'), allowHttp)
+        val uri = java.net.URI(base)
+        if (uri.rawQuery != null || uri.path !in listOf("", "/")) throw ImportFailure("Use the provider's server address and port without a path or query.")
+        val config = JSONObject().put("base", base).put("user", user.trim()).put("password", password)
+        progress("Checking provider login…")
+        val auth = network.read(api(config, ""), allowHttp, 256L * 1024) { JSONObject(it.reader().readText()).optJSONObject("user_info") }
+        if (auth?.optInt("auth") != 1) throw ImportFailure("Provider authentication failed. Check your credentials and subscription status.")
+        val sourceId = existing ?: UUID.randomUUID().toString()
+        val pending = "pending:" + UUID.randomUUID()
+        val prefix = "$pending:"
+        val generation = System.currentTimeMillis()
+        val completed = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+        var count = 0
+        try {
+            for ((kind, action, categories) in listOf(
+                Triple(MediaKind.LIVE, "get_live_streams", "get_live_categories"),
+                Triple(MediaKind.MOVIE, "get_vod_streams", "get_vod_categories"),
+                Triple(MediaKind.SERIES, "get_series", "get_series_categories"))) {
+                val label = when (kind) { MediaKind.LIVE -> "live channels"; MediaKind.MOVIE -> "movies"; else -> "series" }
+                try {
+                    progress("Reading $label categories…")
+                    val groups = try {
+                        network.readSuspending(api(config, categories), allowHttp, 8L * 1024 * 1024) { XtreamStreamParser.categories(it.reader()) }
+                    } catch (e: CancellationException) { throw e } catch (_: Exception) {
+                        warnings += "Some $label categories were unavailable."
+                        emptyMap()
+                    }
+                    val batch = ArrayList<ItemEntity>(128)
+                    var received = 0
+                    progress("Importing $label…")
+                    network.readSuspending(api(config, action), allowHttp) { stream ->
+                        XtreamStreamParser.items(stream.reader(), kind, base, user.trim(), password, groups) { item ->
+                            currentCoroutineContext().ensureActive()
+                            val row = entity(sourceId, item, generation)
+                            batch += row.copy(id = prefix + row.id, sourceId = pending)
+                            if (batch.size == 128) {
+                                dao.putItems(batch)
+                                batch.clear()
+                                progress("Importing $label: ${received + 1}…")
+                            }
+                            received++
+                        }
+                    }
+                    if (batch.isNotEmpty()) dao.putItems(batch)
+                    count += received
+                    completed += kind.name
+                } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                    dao.deleteKind(pending, kind.name)
+                    if (kind == MediaKind.LIVE) throw e
+                    warnings += "${label.replaceFirstChar { it.uppercaseChar() }} could not be refreshed; previous entries were kept."
+                }
+            }
+            if (count == 0) throw ImportFailure("The provider returned no supported channels or titles.")
+            progress("Saving library…")
+            val epg = "$base/xmltv.php?username=${XtreamParser.segment(user.trim())}&password=${XtreamParser.segment(password)}"
+            val source = SourceEntity(sourceId, name.ifBlank { "My provider" }, "XTREAM", secrets.seal(config.toString()), secrets.seal(epg), generation)
+            db.withTransaction {
+                completed.forEach { dao.deleteKind(sourceId, it) }
+                dao.publishPending(pending, sourceId, prefix.length)
+                dao.putSource(source)
+                dao.pruneEpisodes(sourceId)
+            }
+            ProviderImport(count, warnings.distinct())
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) { dao.deleteItems(pending) }
         }
-        if(all.isEmpty()) throw ImportFailure("The provider returned an empty library.")
-        val epg="$base/xmltv.php?username=${XtreamParser.segment(user)}&password=${XtreamParser.segment(password)}"
-        persist(SourceEntity(existing ?: UUID.randomUUID().toString(),name.ifBlank { "My provider" },"XTREAM",secrets.seal(config.toString()),secrets.seal(epg)),all)
     }
     private suspend fun persist(source: SourceEntity,items: List<ImportedItem>): Int {
         val generation=System.currentTimeMillis()
@@ -97,7 +151,7 @@ class LibraryRepository(val db: LibraryDatabase,val secrets: SecretStore,val net
         val c=JSONObject(secrets.open(source.configCipher))
         return when(source.type) {
             "M3U" -> importM3u(source.name,c.getString("url"),allowHttp,source.id)
-            "XTREAM" -> importXtream(source.name,c.getString("base"),c.getString("user"),c.getString("password"),allowHttp,source.id)
+            "XTREAM" -> importXtream(source.name,c.getString("base"),c.getString("user"),c.getString("password"),allowHttp,source.id).count
             else -> withContext(Dispatchers.IO) {
                 val uri=Uri.parse(c.getString("uri"))
                 val parsed=context.contentResolver.openInputStream(uri)?.use { M3uParser.parse(it.reader(),allowHttp=allowHttp) } ?: throw ImportFailure("Select the local file again to restore access.")

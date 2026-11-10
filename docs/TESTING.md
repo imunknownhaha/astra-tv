@@ -37,3 +37,7 @@ Use the exact debug or signed release APK and record device model, Android versi
 10. On Chromecast with Google TV or another 2 GB TV: measure cold startup, PSS via `adb shell dumpsys meminfo com.astratv.player`, frame time/jank via Android Studio Profiler/Perfetto, 10k-channel browse/search and repeated switching. No benchmark numbers are claimed in this project without these measurements.
 
 The source-only independent review checked four security/reliability fixes and returned a scoped ship verdict. It did not certify rendering, remote execution, codec playback, performance or installation.
+
+## 0.1.1 update verification
+
+See BUILD_EVIDENCE_0.1.1.md: 26 tests pass, including synthetic end-to-end Xtream imports, streaming a generated >40 MB response, rollback/recovery, diagnostics privacy and native Compose import-to-library/remote-OK behavior on Robolectric. This does not certify the reported onn hardware.

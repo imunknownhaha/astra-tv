@@ -19,16 +19,26 @@ class NetworkClient {
     private val legacyStream by lazy { legacy.newBuilder().callTimeout(0,TimeUnit.MILLISECONDS).build() }
     fun streamHttp(allowHttp: Boolean) = if(allowHttp) legacyStream else secureStream
     fun http(allowHttp: Boolean) = if(allowHttp) legacy else secure
-    fun <T> read(url: String,allowHttp: Boolean,limit: Long=64L*1024*1024,block: (InputStream)->T): T {
-        UrlPolicy.validate(url,allowHttp)
-        http(allowHttp).newCall(Request.Builder().url(url).header("User-Agent","AstraTV/0.1").build()).execute().use { response ->
-            if(!response.isSuccessful) throw ImportFailure("The provider returned HTTP ${response.code}. Check the source configuration.")
-            val body=response.body ?: throw ImportFailure("The provider returned an empty response.")
-            if(body.contentLength()>limit) throw ImportFailure("The provider response exceeds the size limit.")
-            val raw=body.byteStream().buffered();raw.mark(2);val gzip=raw.read()==0x1f && raw.read()==0x8b;raw.reset()
-            val input=if(gzip) GZIPInputStream(raw) else raw
-            return LimitedInput(input,limit).use(block)
-        }
+    private fun response(url: String, allowHttp: Boolean, streaming: Boolean = false): Response {
+        UrlPolicy.validate(url, allowHttp)
+        return (if(streaming) streamHttp(allowHttp) else http(allowHttp)).newCall(Request.Builder().url(url).header("User-Agent", "AstraTV/0.1.1").build()).execute()
+    }
+    private fun bodyStream(response: Response, limit: Long): InputStream {
+        if (!response.isSuccessful) throw ImportFailure("The provider returned HTTP ${response.code}. Check the source configuration.")
+        val body = response.body ?: throw ImportFailure("The provider returned an empty response.")
+        if (body.contentLength() > limit) throw ImportFailure("The provider response exceeds the size limit.")
+        val raw = body.byteStream().buffered()
+        raw.mark(2)
+        val gzip = raw.read() == 0x1f && raw.read() == 0x8b
+        raw.reset()
+        return LimitedInput(if (gzip) GZIPInputStream(raw) else raw, limit)
+    }
+    fun <T> read(url: String, allowHttp: Boolean, limit: Long = 64L * 1024 * 1024, block: (InputStream) -> T): T =
+        response(url, allowHttp).use { response -> bodyStream(response, limit).use(block) }
+
+    suspend fun <T> readSuspending(url: String, allowHttp: Boolean, limit: Long = 128L * 1024 * 1024,
+        block: suspend (InputStream) -> T): T = response(url, allowHttp, streaming = true).use { response ->
+        bodyStream(response, limit).use { block(it) }
     }
     fun text(url: String,allowHttp: Boolean): String = read(url,allowHttp) { it.bufferedReader().readText() }
 }

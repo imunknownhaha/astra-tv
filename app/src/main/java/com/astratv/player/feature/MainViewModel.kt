@@ -12,6 +12,7 @@ import com.astratv.player.core.datastore.Settings
 import com.astratv.player.core.model.ImportFailure
 import com.astratv.player.core.player.PlaybackEngine
 import com.astratv.player.core.security.PinHasher
+import com.astratv.player.core.security.CrashDiagnostics
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.json.JSONArray
@@ -26,6 +27,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     val profiles=repo.dao.profiles().stateIn(viewModelScope,SharingStarted.Eagerly,emptyList())
     val section=MutableStateFlow("Live TV");val category=MutableStateFlow("");val query=MutableStateFlow("");val limit=MutableStateFlow(200)
     val ready=MutableStateFlow(false)
+    val importProgress=MutableStateFlow<String?>(null)
     val busy=MutableStateFlow(false);val message=MutableStateFlow<String?>(null)
     val activeProfile=combine(profiles,settings) { p,s -> p.find { it.id==s.profile } }.stateIn(viewModelScope,SharingStarted.Eagerly,null)
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -43,20 +45,21 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     var previousChannel: ItemEntity?=null;private set
     private var lastChannel: ItemEntity?=null
     private var pinFailures=0;private var pinBlockedUntil=0L
-    init { viewModelScope.launch { repo.initialize();var saved=app.settings.flow.first();if(repo.dao.profile(saved.profile)==null) { app.settings.string("profile","default");saved=app.settings.flow.first() };settings.first { it==saved };profiles.first { list -> list.any { it.id==saved.profile } };activeProfile.first { it?.id==saved.profile };ready.value=true };viewModelScope.launch {
+    init { viewModelScope.launch { repo.initialize();var saved=app.settings.flow.first();if(repo.dao.profile(saved.profile)==null) { app.settings.string("profile","default");saved=app.settings.flow.first() };settings.first { it==saved };profiles.first { list -> list.any { it.id==saved.profile } };activeProfile.first { it?.id==saved.profile };ready.value=true;message.value=withContext(Dispatchers.IO) { CrashDiagnostics.consume(app) };CrashDiagnostics.mark(CrashDiagnostics.Stage.IDLE) };viewModelScope.launch {
         while(isActive) { delay(10000);saveProgress() }
     } }
     private data class Browse(val settings: Settings,val section: String,val category: String,val query: String,val limit: Int)
     fun navigate(value: String) { section.value=value;category.value="";query.value="";limit.value=200 }
     fun task(block: suspend ()->Unit) { if(busy.value) return;viewModelScope.launch {
         busy.value=true
-        try { block() } catch(e: CancellationException) { throw e } catch(e: Exception) {
+        try { block();CrashDiagnostics.mark(CrashDiagnostics.Stage.IDLE) } catch(e: CancellationException) { CrashDiagnostics.mark(CrashDiagnostics.Stage.IDLE);throw e } catch(e: Exception) {
+            CrashDiagnostics.mark(CrashDiagnostics.Stage.IDLE)
             message.value=if(e is ImportFailure || e is IllegalArgumentException) e.message else "The operation failed. Check your connection, source and file access, then retry."
-        } finally { busy.value=false }
+        } finally { busy.value=false;importProgress.value=null }
     } }
     fun importUrl(name: String,url: String) = task { val n=repo.importM3u(name,url,settings.value.allowHttp);message.value="Imported $n channels." }
     fun importLocal(name: String,uri: Uri) = task { val n=repo.importFile(name,uri,settings.value.allowHttp);message.value="Imported $n channels." }
-    fun importProvider(name: String,server: String,user: String,password: String)=task { val n=repo.importXtream(name,server,user,password,settings.value.allowHttp);message.value="Imported $n items." }
+    fun importProvider(name: String,server: String,user: String,password: String)=task { CrashDiagnostics.mark(CrashDiagnostics.Stage.PROVIDER_IMPORT);val result=repo.importXtream(name,server,user,password,settings.value.allowHttp,progress={ importProgress.value=it });message.value="Imported ${result.count} items."+(if(result.warnings.isEmpty()) "" else " "+result.warnings.joinToString(" ")) }
     fun refresh(source: SourceEntity)=task { val n=repo.refresh(source,settings.value.allowHttp);message.value="Refreshed $n items." }
     fun guide(source: SourceEntity,url: String)=task { val n=repo.refreshGuide(source,url,settings.value.allowHttp);message.value="Imported $n programs." }
     fun delete(source: SourceEntity)=task { if(playing.value?.sourceId==source.id) stopPlayback();repo.delete(source) }

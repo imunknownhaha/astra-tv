@@ -13,5 +13,11 @@ data class ImportedItem(
 data class ParsedPlaylist(val items: List<ImportedItem>, val guideUrl: String = "", val skipped: Int = 0)
 data class GuideEntry(val channelId: String, val title: String, val start: Long, val end: Long, val description: String = "")
 fun stableId(value: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+    .digest(value.toByteArray()).let { bytes ->
+        val hex = "0123456789abcdef"
+        CharArray(bytes.size * 2).also { out -> bytes.forEachIndexed { index, byte ->
+            val value = byte.toInt() and 255
+            out[index * 2] = hex[value ushr 4]; out[index * 2 + 1] = hex[value and 15]
+        } }.concatToString()
+    }
 class ImportFailure(message: String) : Exception(message)

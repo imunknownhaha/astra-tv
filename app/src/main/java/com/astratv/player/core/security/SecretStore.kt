@@ -10,7 +10,9 @@ import javax.crypto.spec.GCMParameterSpec
 import java.util.Base64
 
 /** Keystore keys never leave the device. Backup is disabled because ciphertext is device-bound. */
-class SecretStore {
+interface SecretCodec { fun seal(value: String): String; fun open(value: String): String }
+
+class SecretStore: SecretCodec {
     private val key: SecretKey by lazy {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey("astra.source.v1",null) as? SecretKey) ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").run {
@@ -19,12 +21,12 @@ class SecretStore {
             generateKey()
         }
     }
-    fun seal(value: String): String {
+    override fun seal(value: String): String {
         if(value.isEmpty()) return ""
         val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key)
         return Base64.getEncoder().encodeToString(cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8)))
     }
-    fun open(value: String): String {
+    override fun open(value: String): String {
         if(value.isEmpty()) return ""
         val bytes=Base64.getDecoder().decode(value)
         require(bytes.size>=28)

@@ -80,4 +80,12 @@ streams/alternate.m3u8
         assertTrue(UpdateRepository.newer("0.10.0","0.9.9"));assertFalse(UpdateRepository.newer("0.1.0","0.1.0"))
         assertFalse(UpdateRepository.newer("0.0.9","0.1.0"));assertFalse(UpdateRepository.newer("1.0.0-rc1","0.1.0"))
     }
+    @Test fun crashDiagnosticsDoNotIncludeProviderCredentialsOrExceptionMessages() {
+        val error=IllegalStateException("https://provider.test/?username=private-user&password=private-password")
+        val report=com.astratv.player.core.security.CrashDiagnostics.summary(error,com.astratv.player.core.security.CrashDiagnostics.Stage.PROVIDER_IMPORT)
+        assertTrue(report.contains("IllegalStateException"))
+        assertTrue(report.contains("PROVIDER_IMPORT"))
+        assertFalse(report.contains("private-user"));assertFalse(report.contains("private-password"));assertFalse(report.contains("provider.test"))
+    }
+
 }

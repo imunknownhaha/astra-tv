@@ -2,16 +2,18 @@
 
 Native Kotlin IPTV player for Google TV / Android TV. Application ID `com.astratv.player`. Android 8.0 (API 26) or newer; remote and landscape TV required. No channels, media, credentials or subscriptions are bundled.
 
-This is a functional **0.1 development build**, not a certified production release. See [implementation status](docs/STATUS.md) and [test evidence](docs/TESTING.md) for the exact scope and verification limits.
+This is a functional **0.1.1 development build**, not a certified production release. See [implementation status](docs/STATUS.md) and [test evidence](docs/TESTING.md) for the exact scope and verification limits.
 
 
 ## Download the development build
 
-[Download Astra TV 0.1.0 debug APK](https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.0/astra-tv-0.1.0-debug.apk) · [Release details and source archive](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.0)
+[Download Astra TV 0.1.1 debug APK](https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.1/astra-tv-0.1.1-debug.apk) · [Release details and source archive](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.1)
 
 **Downloader code: `1723835`** · [Short download URL](https://aftv.news/1723835)
 
 This APK is signed with a development certificate. Playback, remote behavior and installation still require Google TV device verification. A stable production signing identity has not been configured.
+
+Version 0.1.1 streams Xtream catalogs in small encrypted batches. The existing Downloader code is retained using a compatibility download asset; choose Update over the existing installation.
 
 ## Build on Fedora
 

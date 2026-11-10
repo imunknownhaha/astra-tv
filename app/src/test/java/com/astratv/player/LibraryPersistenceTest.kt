@@ -45,6 +45,7 @@ class LibraryPersistenceTest {
     }
     @Test fun restrictedParentCategoryAlsoHidesPreviouslyCachedEpisodes()=runTest {
         val dao=db.library()
+        dao.putSource(SourceEntity("source","Test","M3U","cipher"))
         val parent=item().copy(id="series",kind="SERIES",groupName="Restricted")
         val child=item().copy(id="episode",kind="EPISODE",groupName="Season 1",parentId="series")
         dao.putItems(listOf(parent,child))

@@ -45,6 +45,7 @@ fun AstraApp(vm: MainViewModel) {
     val section by vm.section.collectAsStateWithLifecycle();val sources by vm.sources.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle();val rows by vm.rows.collectAsStateWithLifecycle()
     val profile by vm.activeProfile.collectAsStateWithLifecycle();val groups by vm.groups.collectAsStateWithLifecycle()
+    val importProgress by vm.importProgress.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle();val message by vm.message.collectAsStateWithLifecycle()
     val playing by vm.playing.collectAsStateWithLifecycle();val detail by vm.detail.collectAsStateWithLifecycle()
     var import by remember { mutableStateOf(false) };var management by remember { mutableStateOf(false) }
@@ -76,6 +77,7 @@ fun AstraApp(vm: MainViewModel) {
                 Text(if(sources.isEmpty() && section=="Live TV") "Your television, together." else section,style=MaterialTheme.typography.headlineMedium,color=Ink)
                 if(busy) CircularProgressIndicator(Modifier.size(28.dp),color=Accent,strokeWidth=3.dp)
             }
+            if(busy && importProgress!=null) Text(importProgress!!,color=Muted,modifier=Modifier.padding(bottom=12.dp))
             if(message!=null) {
                 Row(Modifier.fillMaxWidth().background(Elevated,RoundedCornerShape(12.dp)).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                     Text(message!!,Modifier.weight(1f),color=Ink,style=MaterialTheme.typography.bodyMedium)

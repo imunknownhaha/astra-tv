@@ -29,11 +29,15 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE sourceId=:sourceId AND generation!=:generation AND kind!='EPISODE'") suspend fun prune(sourceId: String,generation: Long)
     @Query("DELETE FROM items WHERE sourceId=:sourceId AND kind='EPISODE' AND parentId!='' AND parentId NOT IN (SELECT id FROM items WHERE kind='SERIES')") suspend fun pruneEpisodes(sourceId: String)
     @Query("DELETE FROM items WHERE sourceId=:id") suspend fun deleteItems(id: String)
+    @Query("DELETE FROM items WHERE sourceId=:source AND kind=:kind") suspend fun deleteKind(source: String, kind: String)
+    @Query("UPDATE items SET id=substr(id,:prefixLength+1), sourceId=:target WHERE sourceId=:pending")
+    suspend fun publishPending(pending: String, target: String, prefixLength: Int)
+    @Query("DELETE FROM items WHERE sourceId LIKE 'pending:%'") suspend fun clearPendingImports()
     @Query("DELETE FROM sources WHERE id=:id") suspend fun deleteSource(id: String)
     @RawQuery(observedEntities=[ItemEntity::class,WatchEntity::class]) fun browse(query: SupportSQLiteQuery): Flow<List<MediaRow>>
     @RawQuery suspend fun selectItems(query: SupportSQLiteQuery): List<ItemEntity>
     @Query("SELECT * FROM items WHERE id=:id") suspend fun item(id: String): ItemEntity?
-    @Query("SELECT DISTINCT groupName FROM items WHERE (:source='' OR sourceId=:source) ORDER BY groupName COLLATE NOCASE") fun groups(source: String): Flow<List<String>>
+    @Query("SELECT DISTINCT groupName FROM items WHERE sourceId IN (SELECT id FROM sources) AND (:source='' OR sourceId=:source) ORDER BY groupName COLLATE NOCASE") fun groups(source: String): Flow<List<String>>
     @Query("SELECT * FROM items WHERE kind='LIVE' ORDER BY name COLLATE NOCASE LIMIT 100000") suspend fun liveItems(): List<ItemEntity>
     @Query("SELECT * FROM profiles ORDER BY name") fun profiles(): Flow<List<ProfileEntity>>
     @Query("SELECT * FROM profiles WHERE id=:id") suspend fun profile(id: String): ProfileEntity?
