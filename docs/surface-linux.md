@@ -6,3 +6,10 @@ list browsing gives names and categories space. All parsing/network work runs
 outside the GTK thread. mpv owns a dedicated reusable playback window and its
 native playback interactions. Show honest loading, empty and error states; never
 include provider credentials or stream addresses in logs or process arguments.
+
+
+Linux 0.1.4 Live TV uses a traditional category rail, channel list, and embedded
+muted video preview with current/next programme details. Hover waits 500 ms and
+coalesces rapid pointer movement into one stream. Full playback remains a separate
+mpv window. Categories become a dropdown below 1050 px; the preview stacks below
+the channels at that width. Existing charcoal/cyan styling and GTK typography remain.

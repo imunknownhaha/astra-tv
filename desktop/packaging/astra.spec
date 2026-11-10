@@ -1,6 +1,6 @@
 Name:           astra
-Version:        0.1.3
-Release:        2%{?dist}
+Version:        0.1.4
+Release:        1%{?dist}
 Summary:        Native IPTV library and player for Linux
 License:        MIT
 URL:            https://github.com/imunknownhaha/astra-tv
@@ -13,6 +13,8 @@ Requires:       python3-cryptography
 Requires:       python3-ijson
 Requires:       python3-defusedxml
 Requires:       mpv >= 0.38
+Requires:       mpv-libs >= 0.38
+Requires:       libglvnd-egl
 AutoReqProv:     no
 
 %description
@@ -43,6 +45,9 @@ install -Dm 0644 packaging/io.github.imunknownhaha.Astra.svg %{buildroot}%{_data
 %{_datadir}/icons/hicolor/scalable/apps/io.github.imunknownhaha.Astra.svg
 
 %changelog
+* Tue Nov 10 2026 Astra Contributors - 0.1.4-1
+- Add traditional Live TV categories, channel list and embedded hover previews.
+
 * Tue Nov 10 2026 Astra Contributors - 0.1.3-2
 - Pin GDK 3 before imports so GTK 4 installations cannot break cold startup.
 

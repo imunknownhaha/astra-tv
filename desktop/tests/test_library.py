@@ -111,6 +111,7 @@ class LibraryTest(unittest.TestCase):
         source = self.library.sources()[0]; item = self.library.browse()[0]
         self.assertEqual(self.library.import_guide(source["id"], self.base + "/guide.gz"), 2)
         self.assertEqual(len(self.library.programs(item)), 1)
+        self.assertEqual(self.library.live_now([item])[(item["source"], item["guide"])], "Current bulletin")
         programs = self.library.programs(item, True)
         self.assertEqual(len(programs), 2)
         url = self.library.catchup(item, programs[0])

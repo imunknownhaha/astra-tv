@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:44
     steps:
-      - run: dnf -y install git rpm-build python3 python3-gobject gtk3 python3-cryptography python3-ijson python3-defusedxml mpv
+      - run: dnf -y install git rpm-build python3 python3-gobject gtk3 python3-cryptography python3-ijson python3-defusedxml mpv mpv-libs libglvnd-egl
       - uses: actions/checkout@v4
       - run: PYTHONPATH=desktop python3 -m unittest discover -s desktop/tests -v
       - run: ./desktop/build-rpm.sh

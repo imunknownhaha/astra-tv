@@ -8,7 +8,7 @@ favorites, history/resume, profiles and category restrictions with PINs.
 Install on Fedora (Intel/AMD 64-bit):
 
 ```sh
-sudo dnf install ./astra-0.1.3-2.noarch.rpm
+sudo dnf install ./astra-0.1.4-1.noarch.rpm
 astra
 ```
 
@@ -25,7 +25,14 @@ permissions. Back up the whole directory together; deleting the key makes stored
 credentials unreadable. Data is separate from Android; no sync is implemented.
 Metadata such as channel names and guide titles is stored in plaintext locally.
 
-Double-click a channel/title or choose Play / details. The separate native mpv
+Live TV uses categories, a channel list and a video preview with current/next
+programme details from your XMLTV guide. Hover for half a second to preview; click
+a channel or Watch full screen to watch. Previews are muted, limited to one stream,
+and stop when leaving Live TV, losing focus or opening full playback. Hover
+previews can be disabled above the list. Preview playback does not add history.
+At narrower widths the preview stacks beneath the list.
+
+Double-click a movie/title or choose Play / details. The separate native mpv
 window provides video, subtitles, audio selection, seeking, volume, aspect ratio
 and full screen. Space pauses, arrows seek, F toggles full screen, J cycles
 subtitles, # cycles audio, Shift+A cycles aspect ratios. Playback resumes movies
@@ -49,7 +56,9 @@ Build with Fedora `rpm-build` installed:
 
 Run tests with `PYTHONPATH=desktop python3 -m unittest discover -s desktop/tests`.
 Runtime dependencies: python3-gobject, gtk3, python3-cryptography, python3-ijson,
-python3-defusedxml, mpv. mpv's documented IPC interface is used over an anonymous
+python3-defusedxml, mpv, mpv-libs and libglvnd-egl. Embedded previews use
+Gtk.GLArea and libmpv OpenGL, with a 15 fps filter and 12 MiB forward cache.
+Driver support and source availability affect preview playback. mpv's documented IPC interface is used over an anonymous
 socketpair; stream URLs never appear in process arguments or app logs.
 
 Sources: [Fedora mpv package](https://packages.fedoraproject.org/pkgs/mpv/mpv/index.html),

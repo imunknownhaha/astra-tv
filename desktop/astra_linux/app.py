@@ -15,6 +15,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 
 from .core import Library, UserError, VERSION, pin_hash, pin_verify
 from .player import Player
+from .live import LiveTv
 
 SECTIONS = ["Live TV", "Guide", "Movies", "Series", "Catch-up", "Search", "Favorites", "History", "Continue watching", "Playlists", "Profiles", "Settings", "About"]
 CSS = b"""
@@ -27,6 +28,8 @@ button { min-height: 28px; padding: 5px 12px; }
 button.suggested-action { background: #48d6e8; color: #0b1015; }
 button:focus, entry:focus { border-color: #48d6e8; }
 .title { font-size: 23px; font-weight: bold; }
+.preview-title { font-size: 18px; font-weight: bold; }
+glarea { background: #000000; }
 .muted { color: #9caab7; }
 treeview { background: #0b1015; color: #f5f7fa; }
 treeview:selected { background: #1b2732; color: #f5f7fa; }
@@ -74,10 +77,12 @@ class Window(Gtk.ApplicationWindow):
         self.section = "Live TV"
         self.limit = 200
         self.source_filter = ""
+        self.live_view = None
         self.last_play = None
         self.episode_list = []
         self.player = Player(self.library.progress, lambda text: GLib.idle_add(self.set_status, text), lambda: GLib.idle_add(self.playback_ended))
         self.connect("delete-event", self.closing)
+        self.connect("focus-out-event", self.pause_preview)
         header = Gtk.HeaderBar(title="Astra", subtitle="Your library, on Linux")
         header.set_show_close_button(True)
         header.pack_end(button("Add playlist", lambda: self.protect(self.add_playlist), True))
@@ -174,12 +179,20 @@ class Window(Gtk.ApplicationWindow):
             self.protect(navigate)
         else: navigate()
 
+    def pause_preview(self, *_):
+        if self.live_view: self.live_view.pause()
+        return False
+
     def render(self):
+        if self.live_view: self.live_view.close(); self.live_view = None
         self.query_generation += 1
-        for child in self.content.get_children(): self.content.remove(child)
+        for child in self.content.get_children(): child.destroy()
         self.profile_label.set_text(self.library.profile()["name"])
         self.content.pack_start(label(self.section, "title"), False, False, 0)
-        if self.section == "Playlists": self.playlists()
+        if self.section == "Live TV":
+            self.live_view = LiveTv(self)
+            self.content.pack_start(self.live_view, True, True, 0)
+        elif self.section == "Playlists": self.playlists()
         elif self.section == "Settings": self.settings()
         elif self.section == "Profiles": self.profiles()
         elif self.section == "About": self.about()
@@ -286,6 +299,7 @@ class Window(Gtk.ApplicationWindow):
         else: self.play(item)
 
     def play(self, item, url=None, start_over=False):
+        self.pause_preview()
         hidden = json.loads(self.library.profile()["restricted"])
         if item["category"] in hidden: self.set_status("This category is restricted in the active profile."); return
         try:
@@ -497,6 +511,7 @@ class Window(Gtk.ApplicationWindow):
         self.content.pack_start(link, False, False, 0)
 
     def closing(self, *_):
+        if self.live_view: self.live_view.close()
         self.closed = True
         self.query_generation += 1
         self.player.close()

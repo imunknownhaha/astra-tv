@@ -173,3 +173,10 @@ Operate context. Native GTK desktop uses the same colors with system typography,
 a persistent sidebar and an indexed table; mpv provides a separate native video
 window. `docs/surface-linux.md` records this surface. These additions do not
 redefine the existing TV layout.
+
+
+Linux 0.1.4 Live TV uses a traditional category rail, channel list, and embedded
+muted video preview with current/next programme details. Hover waits 500 ms and
+coalesces rapid pointer movement into one stream. Full playback remains a separate
+mpv window. Categories become a dropdown below 1050 px; the preview stacks below
+the channels at that width. Existing charcoal/cyan styling and GTK typography remain.

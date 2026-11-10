@@ -24,7 +24,7 @@ import ijson
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from defusedxml.ElementTree import iterparse
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 MAX_DOWNLOAD = 128 * 1024 * 1024
 
 
@@ -192,10 +192,12 @@ class Library:
         if self.setting("profile") == profile_id:
             self.set_setting("profile", "home")
 
-    def groups(self):
+    def groups(self, kind=""):
+        clause = " WHERE kind=?" if kind else ""
+        args = (kind,) if kind else ()
         hidden = json.loads(self.profile()["restricted"])
         with self.db() as db:
-            return [r[0] for r in db.execute("SELECT DISTINCT category FROM items ORDER BY category COLLATE NOCASE") if r[0] not in hidden]
+            return [r[0] for r in db.execute("SELECT DISTINCT category FROM items" + clause + " ORDER BY category COLLATE NOCASE", args) if r[0] not in hidden]
 
     def browse(self, section="Live TV", query="", category="", limit=200, source=""):
         profile = self.profile()
@@ -456,6 +458,20 @@ class Library:
             template = template.replace("{" + key + "}", str(value))
         if "{" in template: raise UserError("This catch-up template uses unsupported provider placeholders.")
         return address(template, self.setting("allow_http", False))
+
+    def live_now(self, items):
+        """Read current-program titles in bounded indexed batches for the channel list."""
+        now = int(time.time())
+        keys = list(dict.fromkeys((row["source"], row["guide"]) for row in items if row["guide"]))
+        result = {}
+        with self.db() as db:
+            for offset in range(0, len(keys), 100):
+                batch = keys[offset:offset + 100]
+                values = ",".join("(?,?)" for _ in batch)
+                args = [part for pair in batch for part in pair] + [now, now]
+                sql = "WITH visible(source,channel) AS (VALUES " + values + ") SELECT g.source,g.channel,g.title FROM visible v JOIN guide g ON g.source=v.source AND g.channel=v.channel WHERE g.start<=? AND g.stop>? ORDER BY g.start DESC"
+                for row in db.execute(sql, args): result.setdefault((row["source"], row["channel"]), row["title"])
+        return result
 
 
 def xml_time(value):
