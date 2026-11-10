@@ -20,10 +20,10 @@ Google Play release. Saved data is separate from the TV app.
 
 ## Fedora Linux (Intel/AMD 64-bit)
 
-Download `astra-0.1.3-1.noarch.rpm` and install with:
+Download `astra-0.1.3-2.noarch.rpm` and install with:
 
 ```sh
-sudo dnf install ./astra-0.1.3-1.noarch.rpm
+sudo dnf install ./astra-0.1.3-2.noarch.rpm
 ```
 
 Launch **Astra** from the app menu or run `astra`. `noarch` means the app is
@@ -47,3 +47,19 @@ depends on the system. Recording and DRM playback are not included. See
 
 Checksums and source are included with the release. Test evidence and known
 validation limits are documented in `docs/PLATFORM_BUILDS_0.1.3.md`.
+
+## Fedora startup fix — RPM revision 2
+
+RPM revision 2 pins both GTK and GDK to version 3 before importing either
+namespace. Revision 1 could load GDK 4 first on systems with both toolkit
+versions installed, then exit immediately. The phone APK is unchanged. Install
+revision 2 with dnf to update the existing app while preserving the local library.
+
+A fresh-process regression test reproduces the original failure and passes with
+the fix. The packaged launcher is also tested without any GTK/GDK preload.
+
+For compatibility with existing download links, the legacy
+`astra-0.1.3-1.noarch.rpm` filename now also installs RPM revision 2. Prefer the
+explicit `astra-0.1.3-2.noarch.rpm` asset. The original source snapshots remain
+available; `astra-linux-0.1.3-2-source.zip` and the revision-2 source RPM contain
+this startup correction.

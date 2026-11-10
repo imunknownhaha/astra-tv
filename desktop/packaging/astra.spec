@@ -1,6 +1,6 @@
 Name:           astra
 Version:        0.1.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Native IPTV library and player for Linux
 License:        MIT
 URL:            https://github.com/imunknownhaha/astra-tv
@@ -43,5 +43,8 @@ install -Dm 0644 packaging/io.github.imunknownhaha.Astra.svg %{buildroot}%{_data
 %{_datadir}/icons/hicolor/scalable/apps/io.github.imunknownhaha.Astra.svg
 
 %changelog
+* Tue Nov 10 2026 Astra Contributors - 0.1.3-2
+- Pin GDK 3 before imports so GTK 4 installations cannot break cold startup.
+
 * Tue Nov 10 2026 Astra Contributors - 0.1.3-1
 - Initial native Fedora desktop preview.

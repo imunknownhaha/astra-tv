@@ -55,3 +55,14 @@ See the release's SHA256SUMS.txt for the final distributed bytes. Android phone
 builds use the existing development certificate and R8/resource shrinking; the
 RPM is an unsigned development preview. The TV Downloader destination remains
 on the already-published 0.1.2 TV package.
+
+## RPM revision 2 startup correction
+
+The original UI harness imported GTK before the application, which masked a cold
+startup failure on machines with both GTK/GDK major versions installed. The
+installed revision-1 launcher was reproduced failing because the app imported
+GDK 4 before GTK 3. Revision 2 explicitly pins both namespaces to 3.0 before
+loading either. A fresh subprocess regression fails on the original code and
+passes after the fix. All ten Linux tests pass, and a fresh process importing the
+extracted revision-2 RPM code first successfully mapped its native GTK window on
+Xvfb. No Android code or phone package changed in this correction.
