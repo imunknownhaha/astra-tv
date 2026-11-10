@@ -18,8 +18,8 @@ class MainActivity: ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window,false)
-        WindowInsetsControllerCompat(window,window.decorView).hide(WindowInsetsCompat.Type.systemBars())
+        if(!BuildConfig.IS_PHONE) WindowInsetsControllerCompat(window,window.decorView).hide(WindowInsetsCompat.Type.systemBars())
         setContent { AstraTheme { AstraApp(model) } }
     }
-    override fun onStop() { model.background();super.onStop() }
+    override fun onStop() { if(!isChangingConfigurations) model.background();super.onStop() }
 }

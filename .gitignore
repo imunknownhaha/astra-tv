@@ -11,3 +11,6 @@ keystore.properties
 captures/
 
 fixtures/generated/
+
+__pycache__/
+*.pyc

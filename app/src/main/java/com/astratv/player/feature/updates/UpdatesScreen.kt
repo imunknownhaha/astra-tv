@@ -34,7 +34,7 @@ fun UpdatesScreen(vm: MainViewModel) {
         release?.let { r ->
             item { Text("Release ${r.version}",style=MaterialTheme.typography.titleLarge,color=Ink);Text(r.notes,color=Muted,modifier=Modifier.padding(top=10.dp)) }
             if(r.newer && r.asset.isNotBlank()) item { TvAction("Download APK",{ vm.task { downloaded=updates.download(r);vm.message.value="Verified update downloaded. Select Install to continue." } }) }
-            if(r.newer && r.asset.isBlank()) item { Text("This release has no astra-tv-${r.version}.apk asset.",color=Muted) }
+            if(r.newer && r.asset.isBlank()) item { Text("This release has no compatible ${if(BuildConfig.IS_PHONE) "phone" else "TV"} APK asset.",color=Muted) }
         }
         if(downloaded!=null) item { TvAction("Install downloaded update",{
             if(!context.packageManager.canRequestPackageInstalls()) runCatching {

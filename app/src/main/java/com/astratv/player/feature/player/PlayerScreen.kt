@@ -3,6 +3,12 @@ package com.astratv.player.feature.player
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.astratv.player.BuildConfig
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,6 +33,15 @@ import kotlinx.coroutines.delay
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PlayerScreen(vm: MainViewModel) {
+    val view=LocalView.current
+    DisposableEffect(view) {
+        val window=(view.context as? android.app.Activity)?.window
+        if(BuildConfig.IS_PHONE && window!=null) WindowInsetsControllerCompat(window,view).apply {
+            systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { if(BuildConfig.IS_PHONE && window!=null) WindowInsetsControllerCompat(window,view).show(WindowInsetsCompat.Type.systemBars()) }
+    }
     val message by vm.message.collectAsStateWithLifecycle()
     val episodes by vm.episodes.collectAsStateWithLifecycle()
     val player by vm.engine.player.collectAsStateWithLifecycle();val item by vm.playing.collectAsStateWithLifecycle()
@@ -69,14 +84,14 @@ fun PlayerScreen(vm: MainViewModel) {
     }.focusable()) {
         AndroidView(factory={ context -> PlayerView(context).apply { useController=false;isFocusable=false;keepScreenOn=true } },
             update={ view -> view.player=player;view.resizeMode=when(settings.aspect) { 1 -> AspectRatioFrameLayout.RESIZE_MODE_FILL;2 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM;else -> AspectRatioFrameLayout.RESIZE_MODE_FIT } },
-            onRelease={ it.player=null },modifier=Modifier.fillMaxSize())
-        if(message!=null) Row(Modifier.align(Alignment.TopCenter).padding(32.dp).fillMaxWidth().background(Background).padding(16.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) { Text(message!!,Modifier.weight(1f),color=Ink);TvAction("Dismiss",{ vm.message.value=null }) }
+            onRelease={ it.player=null },modifier=Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { controls=!controls;interaction++ } })
+        if(message!=null) Row(Modifier.align(Alignment.TopCenter).padding(if(BuildConfig.IS_PHONE) 16.dp else 32.dp).fillMaxWidth().background(Background).padding(16.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically) { Text(message!!,Modifier.weight(1f),color=Ink);TvAction("Dismiss",{ vm.message.value=null }) }
         if(buffering) CircularProgressIndicator(Modifier.align(Alignment.Center),color=Accent)
         if(error!=null) Column(Modifier.align(Alignment.Center).widthIn(max=560.dp).background(Background).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             Text(error!!,color=Ink,style=MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) { TvAction("Retry",{ vm.engine.retry() });TvAction("Back to library",{ vm.stopPlayback() }) }
         }
-        if(controls) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Background.copy(alpha=0.96f)).padding(32.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        if(controls) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Background.copy(alpha=0.96f)).then(if(BuildConfig.IS_PHONE) Modifier.safeDrawingPadding() else Modifier).padding(if(BuildConfig.IS_PHONE) 16.dp else 32.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             Text(item?.name.orEmpty(),color=Ink,style=MaterialTheme.typography.headlineSmall)
             if(duration>0) { LinearProgressIndicator(progress={ (position.toFloat()/duration).coerceIn(0f,1f) },modifier=Modifier.fillMaxWidth(),color=Accent,trackColor=Outline);Text("${time(position)} / ${time(duration)}",color=Muted) }
             LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(4.dp)) {

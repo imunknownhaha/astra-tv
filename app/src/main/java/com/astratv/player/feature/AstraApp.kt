@@ -35,7 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
-private val destinations=listOf("Live TV","Guide","Movies","Series","Catch-up","Search","Favorites","History","Continue watching","Playlists","Settings","Profiles","About & updates")
+internal val destinations=listOf("Live TV","Guide","Movies","Series","Catch-up","Search","Favorites","History","Continue watching","Playlists","Settings","Profiles","About & updates")
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun AstraApp(vm: MainViewModel) {
@@ -62,20 +62,11 @@ fun AstraApp(vm: MainViewModel) {
     fun protected(action: ()->Unit) { if(settings.ownerPin.isNotEmpty() && !management) { gateHash=settings.ownerPin;gateAction={ management=true;action() } } else action() }
     BackHandler(enabled=playing==null && detail!=null) { vm.detail.value=null }
     BackHandler(enabled=playing==null && detail==null && section!="Live TV") { vm.navigate("Live TV");management=false }
-    Row(Modifier.fillMaxSize().background(Background).padding(32.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
-        Column(Modifier.width(158.dp).fillMaxHeight()) {
-            Text("Astra TV",style=MaterialTheme.typography.headlineSmall,color=Ink)
-            Text(profile?.name ?: "Home",style=MaterialTheme.typography.bodyMedium,color=Muted,modifier=Modifier.padding(top=6.dp,bottom=24.dp))
-            LazyColumn(state=navigationState,modifier=Modifier.fillMaxSize().focusRestorer().focusGroup(),verticalArrangement=Arrangement.spacedBy(7.dp)) {
-                items(destinations,key={it}) { destination ->
-                    TvAction(destination,{
-                        if(destination in listOf("Playlists","Settings","Profiles","About & updates")) protected { vm.navigate(destination) }
-                        else { vm.navigate(destination);management=false }
-                    },Modifier.fillMaxWidth(),section==destination)
-                }
-            }
-        }
-        Column(Modifier.weight(1f).fillMaxHeight()) {
+    LibraryShell(section,profile?.name ?: "Home",navigationState,{ destination ->
+        if(destination in listOf("Playlists","Settings","Profiles","About & updates")) protected { vm.navigate(destination) }
+        else { vm.navigate(destination);management=false }
+    }) {
+        Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(bottom=18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
                 Text(if(sources.isEmpty() && section=="Live TV") "Your television, together." else section,style=MaterialTheme.typography.headlineMedium,color=Ink)
                 if(busy) CircularProgressIndicator(Modifier.size(28.dp),color=Accent,strokeWidth=3.dp)
@@ -104,10 +95,11 @@ fun AstraApp(vm: MainViewModel) {
                             TvAction(source.name,{ vm.string("source",source.id) },selected=settings.source==source.id)
                         } }
                     }
+                    if(BuildConfig.IS_PHONE && section in listOf("Live TV","Movies","Series")) PhoneCategories(groups,profile,vm)
                     if(section=="Search") Field("Search channels, titles and categories",vm.query.collectAsStateWithLifecycle().value,{ vm.query.value=it },modifier=Modifier.fillMaxWidth().padding(bottom=14.dp))
                     if(section in listOf("Guide","Catch-up")) GuideScreen(vm,section=="Catch-up")
                     else Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(18.dp)) {
-                        if(section in listOf("Live TV","Movies","Series")) CategoryList(groups,profile,vm)
+                        if(section in listOf("Live TV","Movies","Series") && !BuildConfig.IS_PHONE) CategoryList(groups,profile,vm)
                         Column(Modifier.weight(1f)) {
                             if(rows.isEmpty()) EmptyLibrary(section)
                             else if(section in listOf("Movies","Series")) {
@@ -199,7 +191,7 @@ fun Field(label: String,value: String,onChange: (String)->Unit,modifier: Modifie
 @Composable
 fun PanelDialog(title: String,onDismiss: ()->Unit,content: @Composable ColumnScope.()->Unit) {
     Dialog(onDismissRequest=onDismiss) {
-        Column(Modifier.widthIn(max=680.dp).fillMaxWidth().heightIn(max=480.dp).background(Background,RoundedCornerShape(16.dp)).border(1.dp,Outline,RoundedCornerShape(16.dp)).padding(24.dp)) {
+        Column(Modifier.widthIn(max=680.dp).fillMaxWidth().heightIn(max=if(BuildConfig.IS_PHONE) 640.dp else 480.dp).background(Background,RoundedCornerShape(16.dp)).border(1.dp,Outline,RoundedCornerShape(16.dp)).padding(24.dp)) {
             Text(title,style=MaterialTheme.typography.headlineSmall,color=Ink,modifier=Modifier.padding(bottom=16.dp))
             content()
         }
@@ -226,7 +218,7 @@ private fun ImportDialog(vm: MainViewModel,onDismiss: ()->Unit) {
     } }
     PanelDialog("Add playlist",onDismiss) {
         Column(Modifier.weight(1f,false).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("M3U URL","Local file","Xtream").forEach { choice -> TvAction(choice,{ mode=choice },selected=mode==choice) } }
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("M3U URL","Local file","Xtream").forEach { choice -> TvAction(choice,{ mode=choice },selected=mode==choice) } }
             Field("Playlist name",name,{ name=it },Modifier.fillMaxWidth())
             if(mode!="Local file") Field(if(mode=="Xtream") "Server (https://host:port)" else "Playlist URL",url,{ url=it },Modifier.fillMaxWidth(),password=mode=="M3U URL")
             if(mode=="Xtream") { Field("Username",user,{ user=it },Modifier.fillMaxWidth());Field("Password",password,{ password=it },Modifier.fillMaxWidth(),password=true) }
@@ -285,7 +277,7 @@ private fun DetailDialog(vm: MainViewModel,row: MediaRow,onDismiss: ()->Unit) {
     PanelDialog(row.item.name,onDismiss) {
         LazyColumn(verticalArrangement=Arrangement.spacedBy(12.dp)) {
             item { Text(row.item.description.ifBlank { "No description supplied by this provider." },color=Muted);Text(row.item.groupName,color=Muted,modifier=Modifier.padding(top=8.dp)) }
-            item { Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            item { Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                 if(row.item.kind!="SERIES") { TvAction(if(row.position>0 && !row.watched) "Resume" else "Play",{ vm.play(row.item);onDismiss() });if(row.position>0) TvAction("Start over",{ vm.play(row.item,startOver=true);onDismiss() }) }
                 TvAction("Toggle favorite",{ vm.favorite(row.item) });TvAction("Close",onDismiss)
             } }

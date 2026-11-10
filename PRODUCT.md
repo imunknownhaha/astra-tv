@@ -20,3 +20,9 @@ Empty repository. No signing identity, GitHub release destination, provider cred
 Preserve library identity on refresh. Reuse one player. Parse and persist off the UI thread. Show recoverable states. Never misrepresent unavailable provider features.
 ## Accessibility & Inclusion
 D-pad and Back throughout, visible focus, safe display margins, keyboard entry using the system TV input method.
+
+## Additional platform scope (0.1.3)
+Android handhelds use a separate package and adaptive touch navigation while
+sharing the Android library/player implementation. Fedora Intel/AMD desktop
+uses a native GTK 3 library, indexed SQLite and reusable mpv playback. Platform
+libraries remain separate; no cloud synchronization is part of this release.

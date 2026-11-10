@@ -11,8 +11,9 @@ android {
         applicationId = "com.astratv.player"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
+        buildConfigField("boolean", "IS_PHONE", "false")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -40,12 +41,27 @@ android {
         isDebuggable=false
         matchingFallbacks += listOf("release")
     }
+    buildTypes.create("phone") {
+        initWith(buildTypes.getByName("preview"))
+        applicationIdSuffix = ".mobile"
+        buildConfigField("boolean", "IS_PHONE", "true")
+        matchingFallbacks.clear()
+        matchingFallbacks += listOf("release")
+    }
+    // Unminified handheld variant for meaningful UI regression tests.
+    buildTypes.create("phoneDebug") {
+        initWith(buildTypes.getByName("debug"))
+        applicationIdSuffix = ".mobile"
+        buildConfigField("boolean", "IS_PHONE", "true")
+        matchingFallbacks += listOf("debug")
+    }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 
     testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1") }
 }
+androidComponents { beforeVariants(selector().all()) { (it as com.android.build.api.variant.HasUnitTestBuilder).enableUnitTest = true } }
 kapt { arguments { arg("room.schemaLocation", "$projectDir/schemas") } }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
@@ -88,3 +104,13 @@ dependencies {
 }
 
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+// Shared parser/import/database checks run in testDebugUnitTest. Keep handheld
+// activity tests in their own process, without other Robolectric Application
+// configurations resetting the application-scoped Room/WorkManager state.
+tasks.withType<Test>().configureEach {
+    if(name == "testPhoneDebugUnitTest") {
+        include("**/Phone*UiTest.class")
+        forkEvery = 1
+    }
+}

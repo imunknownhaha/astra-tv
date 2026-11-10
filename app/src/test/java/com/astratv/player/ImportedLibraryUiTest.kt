@@ -23,6 +23,7 @@ import org.robolectric.annotation.Config
 class ImportedLibraryUiTest {
     @get:Rule val compose=createAndroidComposeRule<MainActivity>()
     @Test fun newProviderCatalogReplacesWelcomeAndFavoritesRemainFunctional() {
+        org.junit.Assume.assumeFalse(BuildConfig.IS_PHONE)
         compose.waitUntil(15000) { compose.onAllNodesWithText("Add a playlist").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Add a playlist").performSemanticsAction(SemanticsActions.RequestFocus)
         lateinit var app: AstraApplication

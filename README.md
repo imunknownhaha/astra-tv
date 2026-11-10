@@ -111,3 +111,19 @@ Follow [release and distribution](docs/RELEASING.md). The repository includes si
 Single `app` module, with `core/{model,database,datastore,network,player,security,ui}` and `feature/{epg,player,updates}` plus the root screen/ViewModel. StateFlow drives Compose. Room queries and network/parsers run away from the UI thread. Lazy lists/grids load 200-item windows; indexed cursor queries switch channels without loading the entire library. One ExoPlayer is reused for switching, released when the activity leaves the foreground, and paired with MediaSession for system controls/audio focus. Progress is saved every ten seconds and at transitions. Persistent source configuration, authenticated playback addresses, logos and request headers are encrypted with an Android Keystore AES-GCM key. Backup is disabled because the key is device-bound.
 
 See [architecture and tradeoffs](docs/ARCHITECTURE.md). The app deliberately does not ship recording, external-player delegation, DRM configuration, cloud accounts, or any channel discovery/catalog service.
+
+## Android phones and Fedora Linux
+
+[Download the phone APK and Fedora RPM](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.3).
+
+- **Phones:** `astra-phone-0.1.3.apk`, Android 8.0+, touch navigation, portrait/landscape, separate `com.astratv.player.mobile` library.
+- **Fedora Intel/AMD 64-bit:** `astra-0.1.3-1.noarch.rpm`. Install with `sudo dnf install ./astra-0.1.3-1.noarch.rpm`, then launch Astra. Native GTK library and mpv playback; dependencies resolve through dnf. The architecture-independent Python package runs on x86_64 Fedora.
+
+These are development previews. Android is development-signed; the RPM is unsigned.
+The existing TV Downloader code **1723835** still installs the TV version.
+Libraries are stored locally and do not synchronize between platforms.
+
+Build the optimized phone APK with `./gradlew assemblePhone`; run handheld tests
+with `./gradlew testPhoneDebugUnitTest`. TV build commands remain unchanged.
+Build the RPM with `./desktop/build-rpm.sh` after installing Fedora `rpm-build`.
+See [desktop instructions](desktop/README.md) and [platform release notes](docs/RELEASE_NOTES_0.1.3.md).

@@ -162,3 +162,14 @@ The playback canvas is black; bottom controls are a dark 96%-opaque overlay with
 - **Don't** invent provider artwork or metadata when it is unavailable.
 - **Don't** replace native remote interaction with browser hover behavior.
 - **Don't** claim screenshots, hardware approval or validated visual quality without that evidence.
+
+## Phone and Fedora extensions (0.1.3)
+
+The TV shell remains the incumbent visual authority. Handheld builds translate
+the same identity into Material touch controls: bottom navigation below 600dp,
+rail at wider widths, drawer for all destinations, horizontal category chips,
+system/IME insets and both orientations. `docs/surface-mobile.md` records the
+Operate context. Native GTK desktop uses the same colors with system typography,
+a persistent sidebar and an indexed table; mpv provides a separate native video
+window. `docs/surface-linux.md` records this surface. These additions do not
+redefine the existing TV layout.

@@ -1,4 +1,4 @@
-# Implementation status — 0.1.2 development build
+# Implementation status — 0.1.3 platform previews
 
 This repository contains working implementation code and built APKs. It is not a production-certification claim. Builds, unit tests and lint passed on the Fedora host; television playback and remote behavior require runtime acceptance. No mockup images were supplied with the brief.
 
@@ -30,3 +30,11 @@ Before calling this production-ready: install on actual Google TV, complete TEST
 ## Performance update (0.1.2)
 
 The distributed APK is now release-optimized and non-debuggable with the existing development signer. See PERFORMANCE_0.1.2.md for host measurements, preserved functionality, configured memory budgets and hardware verification limits.
+
+## Phone and Fedora additions (0.1.3)
+
+The phone APK provides adaptive native touch navigation while sharing the
+optimized Android core. A separate Fedora RPM implements a GTK library with mpv
+playback, M3U/Xtream/EPG import, favorites, history/resume and profiles. Libraries
+are local and separate per platform. See `PLATFORM_BUILDS_0.1.3.md` for the exact
+test scope and remaining hardware acceptance. The TV Downloader stays on 0.1.2.

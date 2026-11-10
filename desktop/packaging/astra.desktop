@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Astra
+Comment=Play your IPTV playlists and on-demand library
+Exec=astra
+Icon=io.github.imunknownhaha.Astra
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=IPTV;M3U;Xtream;TV;
+StartupNotify=true
+StartupWMClass=Astra

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This handheld overlay removes TV support from the shared base. Lint's TV
+     detector reads pre-merge declarations, so its two TV-only checks do not apply. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingLeanbackLauncher,ImpliedTouchscreenHardware">
+    <uses-feature android:name="android.software.leanback" tools:node="remove" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="true" tools:replace="android:required" tools:ignore="UnsupportedTvHardware" />
+    <application android:label="Astra" tools:replace="android:label">
+        <activity android:name=".MainActivity" android:exported="true" tools:node="replace">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+    </application>
+</manifest>

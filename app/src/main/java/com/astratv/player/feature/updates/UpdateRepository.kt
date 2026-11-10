@@ -22,7 +22,7 @@ class UpdateRepository(private val context: Context,private val network: Network
         val root=JSONObject(network.text("https://api.github.com/repos/$repository/releases/latest",false))
         val tag=root.getString("tag_name").removePrefix("v")
         val assets=root.getJSONArray("assets")
-        val expected="astra-tv-$tag.apk"
+        val expected=if(BuildConfig.IS_PHONE) "astra-phone-$tag.apk" else "astra-tv-$tag.apk"
         val asset=(0 until assets.length()).map { assets.getJSONObject(it) }.firstOrNull { it.optString("name")==expected }?.optString("browser_download_url").orEmpty()
         if(asset.isNotEmpty()) {
             val u=URI(asset)

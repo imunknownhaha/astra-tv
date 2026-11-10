@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Button
+import com.astratv.player.BuildConfig
 import androidx.tv.material3.ButtonDefaults
 
 val Background=Color(0xFF0B1015);val Surface=Color(0xFF141C24);val Elevated=Color(0xFF1B2732)
@@ -24,6 +25,15 @@ fun AstraTheme(content: @Composable ()->Unit) {
 }
 @Composable
 fun TvAction(label: String,onClick: ()->Unit,modifier: Modifier=Modifier,selected: Boolean=false,enabled: Boolean=true,content: (@Composable RowScope.()->Unit)?=null) {
+    if(BuildConfig.IS_PHONE) {
+        androidx.compose.material3.FilledTonalButton(onClick=onClick,modifier=modifier.defaultMinSize(minHeight=48.dp),enabled=enabled,
+            shape=RoundedCornerShape(12.dp),
+            colors=androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor=if(selected) Elevated else Surface,contentColor=Ink),
+            contentPadding=PaddingValues(horizontal=16.dp,vertical=10.dp)) {
+            if(content!=null) content() else Text(label,style=MaterialTheme.typography.labelLarge)
+        }
+        return
+    }
     Button(onClick=onClick,modifier=modifier.defaultMinSize(minHeight=48.dp),enabled=enabled,
         colors=ButtonDefaults.colors(containerColor=if(selected) Elevated else Surface,contentColor=Ink,focusedContainerColor=Accent,focusedContentColor=Background),
         shape=ButtonDefaults.shape(shape=RoundedCornerShape(12.dp)),
