@@ -9,6 +9,8 @@ This is a functional **0.1 development build**, not a certified production relea
 
 [Download Astra TV 0.1.0 debug APK](https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.0/astra-tv-0.1.0-debug.apk) · [Release details and source archive](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.0)
 
+**Downloader code: `1723835`** · [Short download URL](https://aftv.news/1723835)
+
 This APK is signed with a development certificate. Playback, remote behavior and installation still require Google TV device verification. A stable production signing identity has not been configured.
 
 ## Build on Fedora

@@ -52,7 +52,7 @@ The URL will be `https://github.com/OWNER/REPOSITORY/releases/download/v0.1.0/as
 1. Install Downloader on the Google TV and enable its Install unknown apps permission when prompted.
 2. Enter the real public HTTPS APK asset URL from your published release in Downloader. Complete the Android installer confirmation.
 3. To obtain a short code, open the [AFTVnews URL Shortener](https://go.aftvnews.com/) in a normal browser and follow its current flow with that hosted HTTPS APK URL. Account requirements or verification are external actions. Test the resulting code on the TV before sharing it.
-4. A build does not generate a Downloader code. The development APK is hosted at https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.0/astra-tv-0.1.0-debug.apk. Its anonymous HTTPS download was verified against SHA-256 `936662abc141ea60a085cd285977cf99d9e4760a533c080c5bfd83d794c33581`. A Downloader code is not available until the shortener CAPTCHA and submission are completed.
+4. A build does not generate a Downloader code. The development APK is hosted at https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.0/astra-tv-0.1.0-debug.apk. Its anonymous HTTPS download was verified against SHA-256 `936662abc141ea60a085cd285977cf99d9e4760a533c080c5bfd83d794c33581`. The verified Downloader code for this development APK is **1723835**, with short URL https://aftv.news/1723835 .
 
 ## Updating in the app
 
