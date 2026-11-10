@@ -29,12 +29,14 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     val ready=MutableStateFlow(false)
     val importProgress=MutableStateFlow<String?>(null)
     val busy=MutableStateFlow(false);val message=MutableStateFlow<String?>(null)
-    val activeProfile=combine(profiles,settings) { p,s -> p.find { it.id==s.profile } }.stateIn(viewModelScope,SharingStarted.Eagerly,null)
+    val activeProfile=combine(profiles,settings.map { it.profile }.distinctUntilChanged()) { p,id -> p.find { it.id==id } }.stateIn(viewModelScope,SharingStarted.Eagerly,null)
     @OptIn(ExperimentalCoroutinesApi::class)
-    val groups=settings.flatMapLatest { repo.dao.groups(if(it.merged) "" else it.source) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    val groups=settings.map { if(it.merged) "" else it.source }.distinctUntilChanged().flatMapLatest { repo.dao.groups(it) }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope,SharingStarted.WhileSubscribed(0),emptyList())
     @OptIn(ExperimentalCoroutinesApi::class,FlowPreview::class)
-    val rows=combine(combine(settings,section,category,query.debounce(180),limit) { s,sec,cat,q,l -> Browse(s,sec,cat,q,l) },activeProfile) { b,p -> b to p }
-        .flatMapLatest { (b,p) -> if(p?.id!=b.settings.profile) flowOf(emptyList()) else repo.browse(b.settings,b.section,b.category,b.query,b.limit,p) }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    private val browseSettings=settings.map { Settings(profile=it.profile,merged=it.merged,source=it.source,sort=it.sort) }.distinctUntilChanged()
+    @OptIn(ExperimentalCoroutinesApi::class,FlowPreview::class)
+    val rows=combine(combine(browseSettings,section,category,query.debounce(180),limit) { s,sec,cat,q,l -> Browse(s,sec,cat,q,l) },activeProfile) { b,p -> b to p }
+        .flatMapLatest { (b,p) -> if(p?.id!=b.settings.profile) flowOf(emptyList()) else if(b.section in listOf("Playlists","Settings","Profiles","About & updates")) flowOf(emptyList()) else repo.browse(b.settings,b.section,b.category,b.query,b.limit,p) }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope,SharingStarted.WhileSubscribed(0),emptyList())
     val engine=PlaybackEngine(app,app.network)
     val playing=MutableStateFlow<ItemEntity?>(null)
     val focusedItemId=MutableStateFlow("")
@@ -46,7 +48,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     private var lastChannel: ItemEntity?=null
     private var pinFailures=0;private var pinBlockedUntil=0L
     init { viewModelScope.launch { repo.initialize();var saved=app.settings.flow.first();if(repo.dao.profile(saved.profile)==null) { app.settings.string("profile","default");saved=app.settings.flow.first() };settings.first { it==saved };profiles.first { list -> list.any { it.id==saved.profile } };activeProfile.first { it?.id==saved.profile };ready.value=true;message.value=withContext(Dispatchers.IO) { CrashDiagnostics.consume(app) };CrashDiagnostics.mark(CrashDiagnostics.Stage.IDLE) };viewModelScope.launch {
-        while(isActive) { delay(10000);saveProgress() }
+        playing.collectLatest { item -> if(item!=null && item.kind!="LIVE") while(isActive) { delay(10000);saveProgress() } }
     } }
     private data class Browse(val settings: Settings,val section: String,val category: String,val query: String,val limit: Int)
     fun navigate(value: String) { section.value=value;category.value="";query.value="";limit.value=200 }
@@ -74,10 +76,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         if(restricted!=null && (0 until restricted.length()).any { restricted.getString(it)==item.groupName || restricted.getString(it)==parentGroup }) throw ImportFailure("This category is restricted in this profile.")
         if(item.kind=="SERIES") { showDetail(MediaRow(item));return }
         saveProgress()
-        val stream=withContext(Dispatchers.IO) { url ?: repo.secrets.open(item.streamCipher) }
-        val watch=repo.dao.watch(settings.value.profile,item.id)
+        val decoded=withContext(Dispatchers.IO) { Triple(url ?: repo.secrets.open(item.streamCipher),repo.secrets.open(item.agentCipher),repo.secrets.open(item.referrerCipher)) }
+        val stream=decoded.first
+        val watch=if(item.kind=="LIVE") null else repo.dao.watch(settings.value.profile,item.id)
         val resume=if(startOver || item.kind=="LIVE" || watch?.watched==true) 0 else watch?.position ?: 0
-        val agent=withContext(Dispatchers.IO) { repo.secrets.open(item.agentCipher) };val ref=withContext(Dispatchers.IO) { repo.secrets.open(item.referrerCipher) }
+        val agent=decoded.second;val ref=decoded.third
         engine.play(stream,settings.value.allowHttp,resume,agent,ref)
         if(item.kind=="LIVE" && lastChannel?.id!=item.id) { previousChannel=lastChannel;lastChannel=item }
         currentUrl=stream;message.value=null;playing.value=item;playbackProfile=settings.value.profile
@@ -91,9 +94,13 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
 
     fun nextEpisode() { val list=episodes.value;val index=list.indexOfFirst { it.id==playing.value?.id };if(index>=0 && index+1<list.size) play(list[index+1]) else message.value="No next episode is loaded." }
+    private var lastProgress: Triple<String,String,Pair<Long,Long>>?=null
     suspend fun saveProgress() {
-        val item=playing.value ?: return;val p=engine.player.value ?: return
-        repo.progress(playbackProfile,item.id,if(item.kind=="LIVE") 0 else p.currentPosition,p.duration.coerceAtLeast(0))
+        val item=playing.value ?: return;if(item.kind=="LIVE") return;val p=engine.player.value ?: return
+        val snapshot=Triple(playbackProfile,item.id,p.currentPosition to p.duration.coerceAtLeast(0))
+        if(snapshot==lastProgress) return
+        repo.progress(snapshot.first,snapshot.second,snapshot.third.first,snapshot.third.second)
+        lastProgress=snapshot
     }
     fun stopPlayback() { viewModelScope.launch { saveProgress();engine.stop();playing.value=null;currentUrl=null } }
     fun background() { viewModelScope.launch { saveProgress();engine.releasePlayer();playing.value=null;currentUrl=null } }

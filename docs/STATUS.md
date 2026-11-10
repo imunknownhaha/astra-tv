@@ -1,4 +1,4 @@
-# Implementation status — 0.1.1 development build
+# Implementation status — 0.1.2 development build
 
 This repository contains working implementation code and built APKs. It is not a production-certification claim. Builds, unit tests and lint passed on the Fedora host; television playback and remote behavior require runtime acceptance. No mockup images were supplied with the brief.
 
@@ -16,7 +16,7 @@ This repository contains working implementation code and built APKs. It is not a
 | Settings | HTTP policy, aspect, merging, source scope, sort, guide refresh, management PIN | Fixed dark identity; no configurable theme, font or overscan sliders (system scaling supported) |
 | Updates | Manual GitHub release check/notes, user download, APK package/version/signer checks, installation permission and FileProvider intent | Not exercised against a real signed update. No automatic updater or key rotation. Requires configured published repository |
 | Distribution | Wrapper, debug APK, R8 unsigned release APK, external-key signing configuration, CI/release workflows, Fedora/ADB/Downloader docs | Development preview published at github.com/imunknownhaha/astra-tv. Production signing remains unconfigured; Downloader code is 1723835. Unsigned APK cannot install |
-| Tests | 26 passing JVM/Robolectric tests, lint with no errors, compiled navigation instrumentation APK | Physical instrumentation execution and emulator screenshots unavailable in this environment; physical-TV acceptance and profiling pending |
+| Tests | 30 passing JVM/Robolectric tests, lint with no errors, compiled navigation instrumentation APK | Physical instrumentation execution and emulator screenshots unavailable in this environment; physical-TV acceptance and profiling pending |
 | Recording/external player | Feasibility documented | Deferred; no nonfunctional buttons advertise these features |
 
 ## Xtream import reliability update (0.1.1)
@@ -26,3 +26,7 @@ A user reported the app closing 10–15 seconds into Xtream loading on an onn 4K
 ## Release gates
 
 Before calling this production-ready: install on actual Google TV, complete TESTING.md with authorized provider streams, capture TV renders and inspect focus/short guide cells, measure performance on constrained hardware, resolve provider-specific adapters as needed, supply and verify a stable production signing key, and publish a real HTTPS APK URL. No benchmark, screenshot, playback-success or Downloader-code outcome is invented here.
+
+## Performance update (0.1.2)
+
+The distributed APK is now release-optimized and non-debuggable with the existing development signer. See PERFORMANCE_0.1.2.md for host measurements, preserved functionality, configured memory budgets and hardware verification limits.

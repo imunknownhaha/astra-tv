@@ -17,11 +17,11 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - run: ./gradlew testDebugUnitTest lintDebug lintPreview assemblePreview assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4
         with:
-          name: astra-tv-debug
+          name: astra-tv-optimized-preview
           path: |
-            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/preview/*.apk
             app/build/reports/tests/testDebugUnitTest/
             app/build/reports/lint-results-debug.html

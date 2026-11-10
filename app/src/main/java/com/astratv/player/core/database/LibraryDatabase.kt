@@ -1,23 +1,31 @@
 package com.astratv.player.core.database
 
 import androidx.room.*
+import androidx.compose.runtime.Immutable
 import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName="sources")
+@Immutable
 data class SourceEntity(@PrimaryKey val id: String, val name: String, val type: String, val configCipher: String, val guideCipher: String = "", val updated: Long = 0)
-@Entity(tableName="items", indices=[Index("sourceId"), Index(value=["kind","groupName"]), Index("guideId"),Index("parentId"),Index(value=["kind","name","id"])])
+@Entity(tableName="items", indices=[Index("sourceId"), Index(value=["kind","groupName"]), Index("guideId"),Index("parentId"),Index(value=["kind","sortName","id"]),Index(value=["kind","groupName","sortName","id"])])
+@Immutable
 data class ItemEntity(@PrimaryKey val id: String, val sourceId: String, val name: String, val kind: String, val groupName: String,
     val streamCipher: String, val logoCipher: String, val guideId: String, val providerId: String, val description: String,
     val catchupDays: Int, val catchupCipher: String, val season: Int, val episode: Int, val parentId: String,
-    val agentCipher: String, val referrerCipher: String, val generation: Long)
+    val agentCipher: String, val referrerCipher: String, val generation: Long,
+    @ColumnInfo(defaultValue="''") val sortName: String = channelSortKey(name))
 @Entity(tableName="profiles")
+@Immutable
 data class ProfileEntity(@PrimaryKey val id: String, val name: String, val pinHash: String = "", val restrictedGroups: String = "[]")
 @Entity(tableName="watch", primaryKeys=["profileId","itemId"],indices=[Index("itemId")])
+@Immutable
 data class WatchEntity(val profileId: String, val itemId: String, val favorite: Boolean = false,
     val position: Long = 0, val duration: Long = 0, val lastPlayed: Long = 0, val watched: Boolean = false)
 @Entity(tableName="programs",primaryKeys=["sourceId","channelId","start"],indices=[Index(value=["channelId","start","end"]),Index("sourceId")])
+@Immutable
 data class ProgramEntity(val sourceId: String, val channelId: String, val title: String, val start: Long, val end: Long, val description: String)
+@Immutable
 data class MediaRow(@Embedded val item: ItemEntity, val favorite: Boolean = false, val position: Long = 0, val duration: Long = 0, val lastPlayed: Long = 0, val watched: Boolean = false)
 @Dao
 interface LibraryDao {
@@ -32,7 +40,7 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE sourceId=:source AND kind=:kind") suspend fun deleteKind(source: String, kind: String)
     @Query("UPDATE items SET id=substr(id,:prefixLength+1), sourceId=:target WHERE sourceId=:pending")
     suspend fun publishPending(pending: String, target: String, prefixLength: Int)
-    @Query("DELETE FROM items WHERE sourceId LIKE 'pending:%'") suspend fun clearPendingImports()
+    @Query("DELETE FROM items WHERE sourceId GLOB 'pending:*'") suspend fun clearPendingImports()
     @Query("DELETE FROM sources WHERE id=:id") suspend fun deleteSource(id: String)
     @RawQuery(observedEntities=[ItemEntity::class,WatchEntity::class]) fun browse(query: SupportSQLiteQuery): Flow<List<MediaRow>>
     @RawQuery suspend fun selectItems(query: SupportSQLiteQuery): List<ItemEntity>
@@ -53,5 +61,10 @@ interface LibraryDao {
     @Query("SELECT * FROM programs WHERE end<:now") suspend fun expiredPrograms(now: Long): List<ProgramEntity>
     @Query("DELETE FROM programs WHERE end<:before") suspend fun pruneGuide(before: Long)
 }
-@Database(entities=[SourceEntity::class,ItemEntity::class,ProfileEntity::class,WatchEntity::class,ProgramEntity::class],version=1,exportSchema=true)
+@Database(entities=[SourceEntity::class,ItemEntity::class,ProfileEntity::class,WatchEntity::class,ProgramEntity::class],version=2,exportSchema=true)
 abstract class LibraryDatabase: RoomDatabase() { abstract fun library(): LibraryDao }
+
+/** Mirrors SQLite lower()/NOCASE (ASCII only), preserving the existing channel ordering. */
+fun channelSortKey(name: String): String = buildString(name.length) {
+    name.forEach { append(if(it in 'A'..'Z') it + 32 else it) }
+}

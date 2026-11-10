@@ -16,6 +16,8 @@ import java.util.UUID
 
 class LibraryRepository(val db: LibraryDatabase,val secrets: SecretCodec,val network: NetworkClient,private val context: Context) {
     val dao=db.library()
+    private val artworkCache=com.astratv.player.core.security.ArtworkResolver(secrets)
+    suspend fun artwork(cipher: String): String = artworkCache.resolve(cipher)
     suspend fun initialize() { dao.clearPendingImports();if(dao.profile("default")==null) dao.putProfile(ProfileEntity("default","Home")) }
     fun browse(settings: Settings,section: String,category: String,query: String,limit: Int,profile: ProfileEntity?): Flow<List<MediaRow>> {
         val args=mutableListOf<Any>(settings.profile)
@@ -36,7 +38,7 @@ class LibraryRepository(val db: LibraryDatabase,val secrets: SecretCodec,val net
             val groups=JSONArray(profile.restrictedGroups)
             for(i in 0 until groups.length()) { clauses+="(i.groupName!=? AND NOT EXISTS (SELECT 1 FROM items parent WHERE parent.id=i.parentId AND parent.groupName=?))";args+=groups.getString(i);args+=groups.getString(i) }
         }
-        val order=when { section in listOf("History","Continue watching") -> "w.lastPlayed DESC";settings.sort=="Recently refreshed" -> "i.generation DESC,i.name COLLATE NOCASE";else -> "i.name COLLATE NOCASE" }
+        val order=when { section in listOf("History","Continue watching") -> "w.lastPlayed DESC";settings.sort=="Recently refreshed" -> "i.generation DESC,i.sortName,i.id";else -> "i.sortName,i.id" }
         args+=limit
         return dao.browse(SimpleSQLiteQuery("SELECT i.*,COALESCE(w.favorite,0) AS favorite,COALESCE(w.position,0) AS position,COALESCE(w.duration,0) AS duration,COALESCE(w.lastPlayed,0) AS lastPlayed,COALESCE(w.watched,0) AS watched FROM items i LEFT JOIN watch w ON w.itemId=i.id AND w.profileId=? WHERE ${clauses.joinToString(" AND ")} ORDER BY $order LIMIT ?",args.toTypedArray()))
     }
@@ -48,8 +50,8 @@ class LibraryRepository(val db: LibraryDatabase,val secrets: SecretCodec,val net
         val comparison=if(direction>0) ">" else "<";val order=if(direction>0) "ASC" else "DESC"
         suspend fun find(withCursor: Boolean): ItemEntity? {
             val clauses=base.toMutableList();val args=baseArgs.toMutableList()
-            if(withCursor && current!=null) { clauses+="(name COLLATE NOCASE $comparison ? OR (name COLLATE NOCASE = ? AND id $comparison ?))";args+=current.name;args+=current.name;args+=current.id }
-            return dao.selectItems(SimpleSQLiteQuery("SELECT * FROM items WHERE ${clauses.joinToString(" AND ")} ORDER BY name COLLATE NOCASE $order,id $order LIMIT 1",args.toTypedArray())).firstOrNull()
+            if(withCursor && current!=null) { clauses+="(sortName,id) $comparison (?,?)";args+=current.sortName;args+=current.id }
+            return dao.selectItems(SimpleSQLiteQuery("SELECT * FROM items WHERE ${clauses.joinToString(" AND ")} ORDER BY sortName $order,id $order LIMIT 1",args.toTypedArray())).firstOrNull()
         }
         return find(true) ?: find(false)
     }

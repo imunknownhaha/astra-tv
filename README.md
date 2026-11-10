@@ -2,18 +2,22 @@
 
 Native Kotlin IPTV player for Google TV / Android TV. Application ID `com.astratv.player`. Android 8.0 (API 26) or newer; remote and landscape TV required. No channels, media, credentials or subscriptions are bundled.
 
-This is a functional **0.1.1 development build**, not a certified production release. See [implementation status](docs/STATUS.md) and [test evidence](docs/TESTING.md) for the exact scope and verification limits.
+This is a functional **0.1.2 development build**, not a certified production release. See [implementation status](docs/STATUS.md) and [test evidence](docs/TESTING.md) for the exact scope and verification limits.
 
 
 ## Download the development build
 
-[Download Astra TV 0.1.1 debug APK](https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.1/astra-tv-0.1.1-debug.apk) · [Release details and source archive](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.1)
+[Download Astra TV 0.1.2 optimized APK](https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.2/astra-tv-0.1.2-optimized.apk) · [Release details and source archive](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.2)
 
 **Downloader code: `1723835`** · [Short download URL](https://aftv.news/1723835)
 
 This APK is signed with a development certificate. Playback, remote behavior and installation still require Google TV device verification. A stable production signing identity has not been configured.
 
 Version 0.1.1 streams Xtream catalogs in small encrypted batches. The existing Downloader code is retained using a compatibility download asset; choose Update over the existing installation.
+
+## Optimized distribution build
+
+Run `./gradlew testDebugUnitTest assemblePreview lintPreview` to produce `app/build/outputs/apk/preview/app-preview.apk`. Preview uses release optimization and disables debuggability while keeping the existing development signing key. Keep that private key safe for compatible updates. Debug builds remain available for engineering tests and should not be used to judge TV performance. [Measured changes and limits](docs/PERFORMANCE_0.1.2.md).
 
 ## Build on Fedora
 

@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.map
 private val Context.preferences by preferencesDataStore("astra.settings")
+@androidx.compose.runtime.Immutable
 data class Settings(val allowHttp: Boolean=false,val merged: Boolean=true,val sort: String="Name",val profile: String="default",
     val source: String="",val aspect: Int=0,val github: String="",val ownerPin: String="",val guideRefresh: Boolean=true)
 class SettingsStore(private val context: Context) {

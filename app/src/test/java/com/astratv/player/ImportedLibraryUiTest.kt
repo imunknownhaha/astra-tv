@@ -6,6 +6,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.room.withTransaction
+import androidx.lifecycle.ViewModelProvider
+import com.astratv.player.feature.MainViewModel
 import com.astratv.player.core.database.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -37,5 +39,12 @@ class ImportedLibraryUiTest {
         compose.onAllNodesWithText("Save")[0].performKeyInput { keyDown(Key.DirectionCenter);keyUp(Key.DirectionCenter) }
         compose.waitUntil(5000) { compose.onAllNodesWithText("Saved").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Saved").assertIsDisplayed()
+        compose.onNodeWithText("Channel 0").performSemanticsAction(SemanticsActions.RequestFocus)
+        val item=runBlocking { app.library.dao.item("synthetic-0")!! }
+        compose.activityRule.scenario.onActivity { ViewModelProvider(it)[MainViewModel::class.java].playing.value=item }
+        compose.waitUntil(5000) { compose.onAllNodesWithText("Close player").fetchSemanticsNodes().isNotEmpty() }
+        compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        compose.waitUntil(5000) { compose.onAllNodesWithText("Saved").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Channel 0").assertIsFocused()
     }
 }

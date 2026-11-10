@@ -42,23 +42,26 @@ fun AstraApp(vm: MainViewModel) {
     val ready by vm.ready.collectAsStateWithLifecycle()
     if(!ready) { Box(Modifier.fillMaxSize().background(Background),contentAlignment=Alignment.Center) { CircularProgressIndicator(color=Accent) };return }
 
+    val playing by vm.playing.collectAsStateWithLifecycle()
+    val listState=rememberLazyListState();val gridState=rememberLazyGridState()
+    val navigationState=rememberLazyListState()
+    LaunchedEffect(Unit) { withFrameNanos { };vm.app.scheduleGuideRefresh() }
+    if(playing!=null) { PlayerScreen(vm);return }
+
     val section by vm.section.collectAsStateWithLifecycle();val sources by vm.sources.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle();val rows by vm.rows.collectAsStateWithLifecycle()
     val profile by vm.activeProfile.collectAsStateWithLifecycle();val groups by vm.groups.collectAsStateWithLifecycle()
     val importProgress by vm.importProgress.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle();val message by vm.message.collectAsStateWithLifecycle()
-    val playing by vm.playing.collectAsStateWithLifecycle();val detail by vm.detail.collectAsStateWithLifecycle()
+    val detail by vm.detail.collectAsStateWithLifecycle()
     var import by remember { mutableStateOf(false) };var management by remember { mutableStateOf(false) }
     LaunchedEffect(settings.profile,section) { if(section !in listOf("Playlists","Settings","Profiles","About & updates")) management=false }
     LaunchedEffect(settings.profile) { management=false }
     var gateHash by remember { mutableStateOf<String?>(null) };var gateAction by remember { mutableStateOf<()->Unit>({}) }
     val limit by vm.limit.collectAsStateWithLifecycle()
-    val listState=rememberLazyListState();val gridState=rememberLazyGridState()
-    val navigationState=rememberLazyListState()
     fun protected(action: ()->Unit) { if(settings.ownerPin.isNotEmpty() && !management) { gateHash=settings.ownerPin;gateAction={ management=true;action() } } else action() }
     BackHandler(enabled=playing==null && detail!=null) { vm.detail.value=null }
     BackHandler(enabled=playing==null && detail==null && section!="Live TV") { vm.navigate("Live TV");management=false }
-    if(playing!=null) { PlayerScreen(vm);return }
     Row(Modifier.fillMaxSize().background(Background).padding(32.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
         Column(Modifier.width(158.dp).fillMaxHeight()) {
             Text("Astra TV",style=MaterialTheme.typography.headlineSmall,color=Ink)
@@ -131,9 +134,10 @@ fun AstraApp(vm: MainViewModel) {
 private fun CategoryList(groups: List<String>,profile: ProfileEntity?,vm: MainViewModel) {
     val current by vm.category.collectAsStateWithLifecycle()
     val hidden=remember(profile) { val a=JSONArray(profile?.restrictedGroups ?: "[]");(0 until a.length()).map { a.getString(it) }.toSet() }
+    val visibleGroups=remember(groups,hidden) { groups.filterNot { it in hidden } }
     LazyColumn(Modifier.width(154.dp).fillMaxHeight().focusRestorer().focusGroup(),verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(4.dp)) {
         item { TvAction("All categories",{ vm.category.value="";vm.limit.value=200 },Modifier.fillMaxWidth(),current.isEmpty()) }
-        items(groups.filterNot { it in hidden },key={it}) { group -> TvAction(group,{ vm.category.value=group;vm.limit.value=200 },Modifier.fillMaxWidth(),current==group) }
+        items(visibleGroups,key={it}) { group -> TvAction(group,{ vm.category.value=group;vm.limit.value=200 },Modifier.fillMaxWidth(),current==group) }
     }
 }
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -147,7 +151,7 @@ private fun EmptyLibrary(section: String) {
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun Artwork(vm: MainViewModel,item: ItemEntity,modifier: Modifier) {
-    val logo by produceState("",item.logoCipher) { value=withContext(Dispatchers.IO) { runCatching { vm.repo.secrets.open(item.logoCipher) }.getOrDefault("") } }
+    val logo by produceState("",item.logoCipher) { value=try { vm.repo.artwork(item.logoCipher) } catch(e: kotlinx.coroutines.CancellationException) { throw e } catch(_: Exception) { "" } }
     Box(modifier.background(Elevated,RoundedCornerShape(8.dp)),contentAlignment=Alignment.Center) {
         if(logo.startsWith("https://")) AsyncImage(model=logo,contentDescription=null,modifier=Modifier.fillMaxSize().padding(6.dp))
         else Text(item.name.take(2).uppercase(),color=Muted,style=MaterialTheme.typography.titleLarge)

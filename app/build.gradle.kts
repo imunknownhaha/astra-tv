@@ -11,8 +11,8 @@ android {
         applicationId = "com.astratv.player"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -33,6 +33,12 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (!System.getenv("ASTRA_KEYSTORE").isNullOrBlank()) signingConfig = signingConfigs.getByName("release")
         }
+    }
+    buildTypes.create("preview") {
+        initWith(buildTypes.getByName("release"))
+        signingConfig=signingConfigs.getByName("debug")
+        isDebuggable=false
+        matchingFallbacks += listOf("release")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

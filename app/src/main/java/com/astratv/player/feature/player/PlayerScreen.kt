@@ -48,7 +48,7 @@ fun PlayerScreen(vm: MainViewModel) {
         player?.addListener(listener);tracks=player?.currentTracks ?: Tracks.EMPTY
         onDispose { player?.removeListener(listener) }
     }
-    LaunchedEffect(player) { while(true) { position=player?.currentPosition ?: 0;duration=(player?.duration ?: 0).coerceAtLeast(0);delay(1000) } }
+    LaunchedEffect(player,controls,item?.kind) { if(controls && item?.kind!="LIVE") while(true) { position=player?.currentPosition ?: 0;duration=(player?.duration ?: 0).coerceAtLeast(0);delay(1000) } }
     Box(Modifier.fillMaxSize().background(Color.Black).focusRequester(rootFocus).onPreviewKeyEvent { e ->
         if(e.type!=KeyEventType.KeyDown) false else {
             interaction++
@@ -60,8 +60,8 @@ fun PlayerScreen(vm: MainViewModel) {
                 KeyEvent.KEYCODE_CHANNEL_UP,KeyEvent.KEYCODE_MEDIA_NEXT -> { if(item?.kind=="LIVE") vm.switchChannel(1) else vm.nextEpisode();true }
                 KeyEvent.KEYCODE_CHANNEL_DOWN,KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { if(item?.kind=="LIVE") vm.switchChannel(-1);true }
                 KeyEvent.KEYCODE_LAST_CHANNEL -> { vm.recall();true }
-                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { if(player?.isCurrentMediaItemSeekable==true) player?.seekTo((position+30000).coerceAtMost(duration));true }
-                KeyEvent.KEYCODE_MEDIA_REWIND -> { if(player?.isCurrentMediaItemSeekable==true) player?.seekTo((position-10000).coerceAtLeast(0));true }
+                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { if(player?.isCurrentMediaItemSeekable==true) player?.seekTo(((player?.currentPosition ?: 0)+30000).coerceAtMost((player?.duration ?: 0).coerceAtLeast(0)));true }
+                KeyEvent.KEYCODE_MEDIA_REWIND -> { if(player?.isCurrentMediaItemSeekable==true) player?.seekTo(((player?.currentPosition ?: 0)-10000).coerceAtLeast(0));true }
                 KeyEvent.KEYCODE_DPAD_CENTER,KeyEvent.KEYCODE_ENTER,KeyEvent.KEYCODE_DPAD_UP,KeyEvent.KEYCODE_DPAD_DOWN,KeyEvent.KEYCODE_DPAD_LEFT,KeyEvent.KEYCODE_DPAD_RIGHT -> if(!controls) { controls=true;true } else false
                 else -> false
             }
@@ -85,8 +85,8 @@ fun PlayerScreen(vm: MainViewModel) {
                     item { TvAction("Previous channel",{ vm.switchChannel(-1) }) };item { TvAction("Next channel",{ vm.switchChannel(1) }) }
                     item { TvAction("Last channel",{ vm.recall() },enabled=vm.previousChannel!=null) }
                 } else {
-                    item { TvAction("Back 10 sec",{ player?.seekTo((position-10000).coerceAtLeast(0)) },enabled=player?.isCurrentMediaItemSeekable==true) }
-                    item { TvAction("Forward 30 sec",{ player?.seekTo((position+30000).coerceAtMost(duration)) },enabled=player?.isCurrentMediaItemSeekable==true) }
+                    item { TvAction("Back 10 sec",{ player?.seekTo(((player?.currentPosition ?: 0)-10000).coerceAtLeast(0)) },enabled=player?.isCurrentMediaItemSeekable==true) }
+                    item { TvAction("Forward 30 sec",{ player?.seekTo(((player?.currentPosition ?: 0)+30000).coerceAtMost((player?.duration ?: 0).coerceAtLeast(0))) },enabled=player?.isCurrentMediaItemSeekable==true) }
                     if(item?.kind=="EPISODE") item { TvAction("Next episode",{ vm.nextEpisode() },enabled=episodes.indexOfFirst { it.id==item?.id }.let { it>=0 && it+1<episodes.size }) }
                 }
                 item { TvAction("Audio",{ trackType=C.TRACK_TYPE_AUDIO }) };item { TvAction("Subtitles",{ trackType=C.TRACK_TYPE_TEXT }) }

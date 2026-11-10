@@ -34,7 +34,7 @@ class PlaybackEngine(private val context: Context,private val network: NetworkCl
                 .setDefaultRequestProperties(if(referrer.isBlank()) emptyMap() else mapOf("Referer" to referrer))
             val factory=DefaultMediaSourceFactory(DefaultDataSource.Factory(context,http)).setLoadErrorHandlingPolicy(NoAutomaticRetry())
             val p=ExoPlayer.Builder(context).setMediaSourceFactory(factory).setLoadControl(
-                androidx.media3.exoplayer.DefaultLoadControl.Builder().setBufferDurationsMs(5000,20000,500,1500).build()).build()
+                androidx.media3.exoplayer.DefaultLoadControl.Builder().setBufferDurationsMs(5000,20000,500,1500).setTargetBufferBytes(24*1024*1024).setPrioritizeTimeOverSizeThresholds(false).build()).build()
             p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),true)
             p.setHandleAudioBecomingNoisy(true)
             p.addListener(object: Player.Listener {
