@@ -30,7 +30,7 @@ Install the signed artifact on a physical TV and complete `TESTING.md` before pu
 
 ## GitHub Releases
 
-1. Create or select a repository and push this project. No repository was specified in the brief, so this session does not publish anything.
+1. The source repository is now public at https://github.com/imunknownhaha/astra-tv. The development preview is published at https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.0 with an installable debug APK. The production signing workflow below remains unconfigured.
 2. In the GitHub repository create environment `release` and secrets `ASTRA_KEYSTORE_BASE64`, `ASTRA_STORE_PASSWORD`, `ASTRA_KEY_ALIAS`, `ASTRA_KEY_PASSWORD`. Base64 is a transport format, not encryption; treat the first secret as the key itself. Add environment reviewers if wanted.
 3. The CI workflow runs unit tests, lint and a debug build. The release workflow runs when a `v*` tag is pushed, validates the version, builds the signed release and uses GitHub's CLI to attach it and its SHA-256 file to the tagged release.
 4. Release assets are named `astra-tv-0.1.0.apk` and `astra-tv-0.1.0.apk.sha256` for version 0.1.0. The app update checker selects this exact name and rejects foreign package IDs, old version codes and mismatched signing certificates before invoking Android's installer.
@@ -52,7 +52,7 @@ The URL will be `https://github.com/OWNER/REPOSITORY/releases/download/v0.1.0/as
 1. Install Downloader on the Google TV and enable its Install unknown apps permission when prompted.
 2. Enter the real public HTTPS APK asset URL from your published release in Downloader. Complete the Android installer confirmation.
 3. To obtain a short code, open the [AFTVnews URL Shortener](https://go.aftvnews.com/) in a normal browser and follow its current flow with that hosted HTTPS APK URL. Account requirements or verification are external actions. Test the resulting code on the TV before sharing it.
-4. A build does not generate a Downloader code. This project has no hosted APK URL or code until publication and shortener setup are performed.
+4. A build does not generate a Downloader code. The development APK is hosted at https://github.com/imunknownhaha/astra-tv/releases/download/dev-0.1.0/astra-tv-0.1.0-debug.apk. Its anonymous HTTPS download was verified against SHA-256 `936662abc141ea60a085cd285977cf99d9e4760a533c080c5bfd83d794c33581`. A Downloader code is not available until the shortener CAPTCHA and submission are completed.
 
 ## Updating in the app
 
