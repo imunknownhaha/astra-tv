@@ -1,0 +1,1 @@
+<resources><style name="Theme.Astra" parent="android:style/Theme.Material.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">false</item><item name="android:windowActionModeOverlay">true</item><item name="android:windowBackground">#0B1015</item><item name="android:colorAccent">#48D6E8</item></style></resources>
