@@ -306,7 +306,7 @@ class Window(Gtk.ApplicationWindow):
             payload = self.library.open(item["secret"])
             watch = self.library.watch(item["id"])
             resume = 0 if start_over or item["kind"] == "LIVE" or watch.get("duration", 0) > 0 and watch.get("position", 0) >= watch["duration"] * .95 else watch.get("position", 0)
-            self.player.play(item, payload, self.library.profile()["id"], resume, self.library.setting("allow_http", False), url)
+            self.player.play(item, payload, self.library.profile()["id"], resume, self.library.setting("allow_http", False), url, self.library.setting("live_format", "auto"))
             self.last_play = item, url
             self.library.progress(item["id"], self.library.profile()["id"], resume, 0)
         except UserError as exc: self.set_status(str(exc))
@@ -462,6 +462,12 @@ class Window(Gtk.ApplicationWindow):
         if self.library.setting("owner_pin", ""):
             box.pack_start(button("Remove management PIN", lambda: (self.library.set_setting("owner_pin", ""), self.render())), False, False, 0)
         box.pack_start(label("Playback uses one mpv window with hardware decoding when supported. Space pauses, arrows seek, F toggles full screen, J cycles subtitles, # cycles audio, and Shift+A cycles aspect ratios. mpv also provides on-screen playback controls.", "muted"), False, False, 0)
+        box.pack_start(label("Live stream format", "preview-title"), False, False, 0)
+        formats = Gtk.ComboBoxText()
+        for key, title in [("auto", "Automatic (MPEG-TS, then HLS)"), ("hls", "HLS first"), ("ts", "MPEG-TS only")]: formats.append(key, title)
+        formats.set_active_id(self.library.setting("live_format", "auto"))
+        formats.connect("changed", lambda widget: self.library.set_setting("live_format", widget.get_active_id()))
+        box.pack_start(formats, False, False, 0)
         self.content.pack_start(scroll(box), True, True, 0)
 
     def owner_pin(self):

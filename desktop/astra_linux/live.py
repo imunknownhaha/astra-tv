@@ -8,6 +8,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, Pango
 from .core import UserError
 from .preview import Preview
+from .streams import candidates
 
 
 class HoverRequest:
@@ -269,7 +270,8 @@ class LiveTv(Gtk.Box):
             self.status("Full playback is open. Close its window to resume previews."); return
         if item["category"] in json.loads(self.library.profile()["restricted"]): return
         try:
-            self.preview.play(item["id"], self.library.open(item["secret"]), self.library.setting("allow_http", False))
+            payload = self.library.open(item["secret"])
+            self.preview.play(item["id"], payload, self.library.setting("allow_http", False), candidates(item, payload, preference=self.library.setting("live_format", "auto")))
         except UserError as exc: self.status(str(exc))
         except Exception: self.status("Preview unavailable. Try opening full playback.")
 

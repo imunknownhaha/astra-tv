@@ -12,6 +12,7 @@ import threading
 import time
 
 from .core import UserError, address
+from .streams import candidates, http_status, failure_message
 
 
 class Player:
@@ -24,6 +25,8 @@ class Player:
         self.last_save = 0.0
         self.closed = False
         self.accept_position = False
+        self.streams = []; self.stream_index = 0; self.http_error = None
+        self.load_request = 100
 
     def start(self):
         if self.process and self.process.poll() is None: return
@@ -33,7 +36,7 @@ class Player:
         try:
             self.process = subprocess.Popen([
                 binary, "--no-config", "--load-scripts=no", "--ytdl=no", "--load-unsafe-playlists=no",
-                "--idle=yes", "--force-window=yes", "--hwdec=auto-safe", "--cache=yes", "--cache-secs=15",
+                "--idle=yes", "--force-window=no", "--network-timeout=15", "--hwdec=auto-safe", "--cache=yes", "--cache-secs=15",
                 "--demuxer-max-bytes=32MiB", "--demuxer-max-back-bytes=8MiB", "--save-position-on-quit=no",
                 "--input-terminal=no", "--msg-level=all=no", "--title=Astra", "--input-ipc-client=fd://%d" % child.fileno()
             ], pass_fds=(child.fileno(),), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -45,16 +48,17 @@ class Player:
         self.sock = client
         self.closed = False
         threading.Thread(target=self._read, args=(client,), daemon=True).start()
+        self.command("request_log_messages", "warn")
         self.command("observe_property", 1, "time-pos")
         self.command("observe_property", 2, "duration")
 
-    def command(self, *args):
+    def command(self, *args, request_id=0):
         with self.lock:
             if not self.sock: return
-            try: self.sock.sendall(json.dumps({"command": list(args)}).encode() + b"\n")
+            try: self.sock.sendall(json.dumps({"command": list(args), "request_id": request_id}).encode() + b"\n")
             except OSError: self.status("Playback closed. Select a title to reopen it.")
 
-    def play(self, item, payload, profile, resume=0, allow_http=False, url=None):
+    def play(self, item, payload, profile, resume=0, allow_http=False, url=None, preference="auto"):
         stream = address(url or payload.get("url", ""), allow_http)
         # Save before replacing identity; updates must belong to the item that played.
         self.save()
@@ -63,10 +67,14 @@ class Player:
             self.accept_position = False
             self.item, self.profile = item, profile
             self.position, self.duration = float(resume), 0.0
+            self.streams = [address(value, allow_http) for value in candidates(item, payload, url, preference)]
+            self.stream_index = 0; self.http_error = None
             options = {"start": str(max(0, resume))}
             if payload.get("agent"): options["user-agent"] = payload["agent"]
             if payload.get("referrer"): options["referrer"] = payload["referrer"]
-            self.command("loadfile", stream, "replace", -1, options)
+            self.load_options = options
+            self.load_request += 1
+            self.command("loadfile", self.streams[0], "replace", -1, options, request_id=self.load_request)
         self.status("Opening playback window…")
 
     def save(self):
@@ -82,7 +90,12 @@ class Player:
                     if len(line) > 1024 * 1024: break
                     try: event = json.loads(line)
                     except (ValueError, TypeError): continue
-                    if event.get("event") == "property-change":
+                    if event.get("request_id") == self.load_request and event.get("error") not in (None, "success"):
+                        self.status("The player rejected the stream request. Select Retry playback.")
+                    elif event.get("event") == "log-message":
+                        code = http_status(event.get("text", ""))
+                        if code: self.http_error = code
+                    elif event.get("event") == "property-change":
                         value = event.get("data")
                         with self.lock:
                             if self.accept_position and isinstance(value, (int, float)):
@@ -95,7 +108,14 @@ class Player:
                         self.status("Playing in mpv · Space: pause · F: full screen · J: subtitles · #: audio")
                     elif event.get("event") == "end-file":
                         if event.get("reason") in ("eof", "error"): self.save()
-                        if event.get("reason") == "error": self.status("Playback failed. Check your connection or codec support, then select Retry playback.")
+                        if event.get("reason") == "error":
+                            with self.lock:
+                                if self.stream_index + 1 < len(self.streams):
+                                    self.stream_index += 1; self.accept_position = False; self.http_error = None
+                                    self.load_request += 1
+                                    self.command("loadfile", self.streams[self.stream_index], "replace", -1, self.load_options, request_id=self.load_request)
+                                    self.status("Trying alternate live stream format…")
+                                else: self.status(failure_message(self.http_error))
                         elif event.get("reason") == "eof": self.status("Playback finished."); self.ended()
         except OSError:
             pass

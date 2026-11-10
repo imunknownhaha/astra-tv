@@ -14,6 +14,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, GLib
 from .core import address, UserError, VERSION
+from .streams import http_status, failure_message
 
 
 class Param(C.Structure):
@@ -30,6 +31,10 @@ UPDATE = C.CFUNCTYPE(None, C.c_void_p)
 
 class GlInit(C.Structure):
     _fields_ = [("get_proc", GET_PROC), ("context", C.c_void_p)]
+
+
+class LogMessage(C.Structure):
+    _fields_ = [("prefix", C.c_char_p), ("level", C.c_char_p), ("text", C.c_char_p), ("log_level", C.c_int)]
 
 
 class Event(C.Structure):
@@ -66,6 +71,7 @@ class Preview(Gtk.GLArea):
         self.ready_frame = threading.Event()
         self.frames = 0
         self.loaded = False
+        self.streams = []; self.stream_index = 0; self.http_error = None
         self.started = 0
         self.update_cb = UPDATE(lambda _: self.ready_frame.set())
 
@@ -83,6 +89,7 @@ class Preview(Gtk.GLArea):
         binding(lib, "mpv_initialize", C.c_int, C.c_void_p)
         binding(lib, "mpv_set_option_string", C.c_int, C.c_void_p, C.c_char_p, C.c_char_p)
         binding(lib, "mpv_command_async", C.c_int, C.c_void_p, C.c_uint64, C.POINTER(C.c_char_p))
+        binding(lib, "mpv_request_log_messages", C.c_int, C.c_void_p, C.c_char_p)
         binding(lib, "mpv_wait_event", C.POINTER(Event), C.c_void_p, C.c_double)
         binding(lib, "mpv_render_context_create", C.c_int, C.POINTER(C.c_void_p), C.c_void_p, C.POINTER(Param))
         binding(lib, "mpv_render_context_set_update_callback", None, C.c_void_p, UPDATE, C.c_void_p)
@@ -108,6 +115,7 @@ class Preview(Gtk.GLArea):
                 if lib.mpv_set_option_string(self.handle, key.encode(), value.encode()) < 0:
                     raise UserError("The system mpv library cannot initialize previews. Update mpv and retry.")
             if lib.mpv_initialize(self.handle) < 0: raise UserError("Could not initialize the preview player.")
+            lib.mpv_request_log_messages(self.handle, b"warn")
             init = GlInit(self.get_proc, None)
             api = C.create_string_buffer(b"opengl")
             advanced = C.c_int(1)
@@ -129,16 +137,18 @@ class Preview(Gtk.GLArea):
         if self.lib.mpv_command_async(self.handle, 0, values) < 0:
             raise UserError("Could not open this channel preview. Try full playback.")
 
-    def play(self, item_id, payload, allow_http=False):
+    def play(self, item_id, payload, allow_http=False, streams=None):
         if item_id == self.active_id: return
         url = address(payload.get("url", ""), allow_http)
         self._ensure()
         self._command("set", "user-agent", payload.get("agent") or "Astra/" + VERSION)
         self._command("set", "referrer", payload.get("referrer") or "")
+        self.streams = [address(value, allow_http) for value in (streams or [url])]
+        self.stream_index = 0; self.http_error = None
         self.active_id = item_id
         self.loaded = False
         self.started = time.monotonic()
-        self._command("loadfile", url, "replace")
+        self._command("loadfile", self.streams[0], "replace")
         if not self.timer: self.timer = GLib.timeout_add(50, self._tick)
         self.status("Connecting · muted preview")
         self.queue_render()
@@ -148,18 +158,32 @@ class Preview(Gtk.GLArea):
         for _ in range(32):
             event = self.lib.mpv_wait_event(self.handle, 0).contents
             if not event.event_id: break
-            if event.event_id == 8:
+            if event.event_id == 2 and event.data:
+                raw = C.cast(event.data, C.POINTER(LogMessage)).contents.text
+                code = http_status(raw.decode('utf-8', 'replace') if raw else '')
+                if code: self.http_error = code
+            elif event.event_id == 8:
                 self.loaded = True; self.status("Live preview · muted")
             elif event.event_id == 7 and event.data:
                 reason = C.cast(event.data, C.POINTER(C.c_int))[0]
                 if reason == 4:
-                    self.status("Preview unavailable. Try opening full playback.")
+                    if self.advance(): continue
+                    self.status(failure_message(self.http_error))
                     self.release(); return False
         if time.monotonic() - self.started > 15 and not self.loaded:
-            self.status("Preview timed out. Try opening full playback.")
+            if self.advance(): return True
+            self.status(failure_message(self.http_error, timeout=True))
             self.release(); return False
         if self.ready_frame.is_set():
             self.ready_frame.clear(); self.queue_render()
+        return True
+
+    def advance(self):
+        if self.stream_index + 1 >= len(self.streams): return False
+        self.stream_index += 1; self.http_error = None
+        self.loaded = False; self.started = time.monotonic()
+        self._command("loadfile", self.streams[self.stream_index], "replace")
+        self.status("Trying alternate live stream format · muted")
         return True
 
     def _render(self, *_):

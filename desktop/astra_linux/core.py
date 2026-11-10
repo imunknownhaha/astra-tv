@@ -24,7 +24,7 @@ import ijson
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from defusedxml.ElementTree import iterparse
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 MAX_DOWNLOAD = 128 * 1024 * 1024
 
 

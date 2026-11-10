@@ -114,10 +114,10 @@ See [architecture and tradeoffs](docs/ARCHITECTURE.md). The app deliberately doe
 
 ## Android phones and Fedora Linux
 
-[Phone APK](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.3) · [Fedora RPM](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.4-2).
+[Phone APK](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.3) · [Fedora RPM](https://github.com/imunknownhaha/astra-tv/releases/tag/dev-0.1.5).
 
 - **Phones:** `astra-phone-0.1.3.apk`, Android 8.0+, touch navigation, portrait/landscape, separate `com.astratv.player.mobile` library.
-- **Fedora Intel/AMD 64-bit:** `astra-0.1.4-2.noarch.rpm`. Install with `sudo dnf install ./astra-0.1.4-2.noarch.rpm`, then launch Astra. Native GTK library and mpv playback; dependencies resolve through dnf. The architecture-independent Python package runs on x86_64 Fedora.
+- **Fedora Intel/AMD 64-bit:** `astra-0.1.5-1.noarch.rpm`. Install with `sudo dnf install ./astra-0.1.5-1.noarch.rpm`, then launch Astra. Native GTK library and mpv playback; dependencies resolve through dnf. The architecture-independent Python package runs on x86_64 Fedora.
 
 These are development previews. Android is development-signed; the RPM is unsigned.
 The existing TV Downloader code **1723835** still installs the TV version.

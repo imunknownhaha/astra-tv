@@ -8,7 +8,7 @@ favorites, history/resume, profiles and category restrictions with PINs.
 Install on Fedora (Intel/AMD 64-bit):
 
 ```sh
-sudo dnf install ./astra-0.1.4-2.noarch.rpm
+sudo dnf install ./astra-0.1.5-1.noarch.rpm
 astra
 ```
 
@@ -31,6 +31,13 @@ a channel or Watch full screen to watch. Previews are muted, limited to one stre
 and stop when leaving Live TV, losing focus or opening full playback. Hover
 previews can be disabled above the list. Preview playback does not add history.
 At narrower widths the preview stacks beneath the list.
+
+Xtream live playback automatically tries HLS if MPEG-TS fails. Settings → Live
+stream format offers HLS first or MPEG-TS only without reimporting playlists.
+This applies to both previews and full playback. Failed requests show a redacted
+HTTP status when available; source addresses and credentials are never displayed.
+The full playback window opens when media is available rather than showing an
+empty drop-file screen while a failed stream is idle.
 
 Double-click a movie/title or choose Play / details. The separate native mpv
 window provides video, subtitles, audio selection, seeking, volume, aspect ratio

@@ -1,6 +1,6 @@
 Name:           astra
-Version:        0.1.4
-Release:        2%{?dist}
+Version:        0.1.5
+Release:        1%{?dist}
 Summary:        Native IPTV library and player for Linux
 License:        MIT
 URL:            https://github.com/imunknownhaha/astra-tv
@@ -45,6 +45,10 @@ install -Dm 0644 packaging/io.github.imunknownhaha.Astra.svg %{buildroot}%{_data
 %{_datadir}/icons/hicolor/scalable/apps/io.github.imunknownhaha.Astra.svg
 
 %changelog
+* Tue Nov 10 2026 Astra Contributors - 0.1.5-1
+- Add bounded Xtream HLS fallback, stream format selection and safe playback errors.
+- Open the playback window only when media is available.
+
 * Tue Nov 10 2026 Astra Contributors - 0.1.4-2
 - Pin the numeric locale to C before creating libmpv hover previews.
 

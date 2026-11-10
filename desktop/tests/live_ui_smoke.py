@@ -5,6 +5,7 @@ Requires Xvfb, ffmpeg, Mesa/OpenGL and the normal RPM runtime dependencies.
 """
 import argparse
 import locale
+from urllib.parse import urlsplit, parse_qs
 import os
 from pathlib import Path
 import shutil
@@ -26,10 +27,20 @@ def child(output):
     from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
     import threading
     requests = []
+    server_mode = {"fail": False}
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *_): pass
         def do_GET(self):
             requests.append(self.path)
+            if server_mode['fail']:
+                self.send_error(404); return
+            if self.path.startswith('/live'):
+                parsed = urlsplit(self.path)
+                if parsed.path.endswith('.ts'):
+                    self.send_error(404); return
+                self.send_response(302)
+                self.send_header('Location', '/hls/index.m3u8?' + parsed.query)
+                self.end_headers(); return
             super().do_GET()
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(Handler, directory=str(output)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -38,6 +49,13 @@ def child(output):
     fixture = output/'fixture.m3u'
     fixture.write_text('#EXTM3U\n' + ''.join('#EXTINF:-1 tvg-id="fixture-%d" group-title="%s",Fixture channel %03d\nhttp://127.0.0.1:%d/test.mp4?channel=%d\n' % (i, 'News' if i % 2 == 0 else 'Sport', i, server.server_address[1], i) for i in range(200)))
     lib.import_source('Generated UI fixture', {'type':'FILE', 'path':str(fixture)})
+    with lib.db() as db:
+        for item in db.execute('SELECT id,secret FROM items').fetchall():
+            payload = lib.open(item['secret'])
+            channel = parse_qs(urlsplit(payload['url']).query)['channel'][0]
+            payload['provider_id'] = channel
+            payload['url'] = 'http://127.0.0.1:%d/live/fixture/fixture/%s.ts?channel=%s' % (server.server_address[1],channel,channel)
+            db.execute('UPDATE items SET secret=? WHERE id=?',(lib.seal(payload),item['id']))
     now = int(time.time()); source = lib.sources()[0]['id']
     with lib.db() as db:
         for i in range(200):
@@ -59,7 +77,9 @@ def child(output):
             elif state['phase'] == 1 and live.preview.frames >= 30:
                 assert locale.setlocale(locale.LC_NUMERIC) == 'C'
                 assert live.preview.active_id == live.model[2][3]['id']
-                assert all('channel=2' in p for p in requests), requests
+                assert all(parse_qs(urlsplit(p).query).get('channel', ['2']) == ['2'] for p in requests), requests
+                assert live.preview.stream_index == 1, 'Preview must recover from TS 404 to HLS'
+                report.update(hlsFallback=True, redirectedH264Aac=True)
                 assert live.now_title.get_text() == 'Fixture programme'
                 assert live.next_title.get_text() == 'Fixture next programme'
                 assert not lib.browse('History'), 'Hover previews must not create history'
@@ -101,6 +121,19 @@ def child(output):
                 assert w.player.item['id'] == target and w.player.process.poll() is None
                 assert len(lib.browse('History')) == 1
                 report.update(narrowLayout=True, categoryFilter=True, toggleAndNavigationStopPreview=True, fullscreenHandoff=True)
+                state['phase'] = 6
+            elif state['phase'] == 6 and w.player.accept_position and w.player.position > 1:
+                assert w.player.stream_index == 1, 'Fullscreen must recover from TS 404 to HLS'
+                report.update(fullscreenVideoPlaying=True)
+                w.player.close(); server_mode['fail'] = True
+                live.retry(); state['phase'] = 7
+            elif state['phase'] == 7 and 'HTTP 404' in live.preview_status.get_text():
+                assert live.preview.handle is None
+                live.watch_button.clicked(); state['phase'] = 8
+            elif state['phase'] == 8 and 'HTTP 404' in w.status.get_text():
+                assert not w.player.accept_position
+                assert '127.0.0.1' not in w.status.get_text()
+                report.update(failedPreviewAndFullscreenShowHttpError=True)
                 state['ok'] = True
                 w.closing(); app.quit(); return False
         except Exception:
@@ -122,6 +155,8 @@ def main():
     args = parser.parse_args(); output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     if args.child: child(output); return
     subprocess.run([shutil.which('ffmpeg') or 'ffmpeg', '-hide_banner','-loglevel','error','-f','lavfi','-i','testsrc2=size=320x180:rate=15','-t','25','-c:v','mpeg4','-movflags','+faststart','-y',str(output/'test.mp4')], check=True, timeout=30)
+    (output/'hls').mkdir(exist_ok=True)
+    subprocess.run([shutil.which('ffmpeg') or 'ffmpeg', '-hide_banner','-loglevel','error','-f','lavfi','-i','testsrc2=size=320x180:rate=15','-f','lavfi','-i','sine=frequency=440:sample_rate=48000','-t','25','-c:v','libx264','-preset','ultrafast','-g','30','-pix_fmt','yuv420p','-c:a','aac','-f','hls','-hls_time','2','-hls_list_size','0','-y',str(output/'hls/index.m3u8')], check=True, timeout=30)
     xvfb = subprocess.Popen([os.environ.get('ASTRA_XVFB', 'Xvfb'), '-displayfd','1','-screen','0','1280x1100x24','-nolisten','tcp'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     try:
         display = xvfb.stdout.readline().strip()
